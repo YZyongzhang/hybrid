@@ -65,7 +65,7 @@ def run_training(config):
 
     model = Network().to(device)
     if cfg.MODEL_PATH:
-        model.load_state_dict(torch.load(resolve_path(cfg.MODEL_PATH), map_location="cpu", weights_only=True))
+        model.load_state_dict(torch.load(resolve_path(cfg.MODEL_PATH), map_location="gpu", weights_only=True))
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.LEARNING_RATE, weight_decay=cfg.WEIGHT_DECAY)
     save_dir = resolve_path(cfg.SAVE_DIR)
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -96,9 +96,10 @@ def run(config):
 
 
 def main(argv=None):
+    # import pdb;pdb.set_trace()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", help="YAML overrides for experiment/avnav/config/default.yaml")
-    parser.add_argument("--stage", choices=("convert", "train", "all"), help="Override workflow OPEN flags")
+    parser.add_argument("--config", default="experiment/avnav/config/av_nav_multiple.yaml" , help="YAML overrides for experiment/avnav/config/default.yaml")
+    parser.add_argument("--stage", default="train" , choices=("convert", "train", "all"), help="Override workflow OPEN flags")
     args = parser.parse_args(argv)
     config = get_config(args.config)
     if args.stage:

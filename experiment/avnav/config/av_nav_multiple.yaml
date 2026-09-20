@@ -18,3 +18,4 @@ TASK_CONFIG:
     LEARNING_RATE: 0.0001
     SAVE_DIR: experiment/avnav/result
     LOG_DIR: experiment/avnav/result/tensorboard
+    TENSORBOARD: true
