@@ -111,7 +111,8 @@ class Train:
                     self.writer.add_scalar("Loss/step_action", loss_action.item(), global_step)
                     self.writer.add_scalar("Loss/step_angle", loss_angle.item(), global_step)
                 global_step += 1
-
+                
+            # import pdb;pdb.set_trace()
             validation = self.validate(ep)
             self._maybe_reload_dataset()
 
@@ -134,7 +135,7 @@ class Train:
             )
 
             save_path = f"{self.save_dir}/model_epoch_{ep + 1}.pth"
-            torch.save(self.train_model.state_dict(), save_path)
+            # torch.save(self.train_model.state_dict(), save_path)
             tqdm.write(f"Saved model checkpoint to {save_path}")
             if validation["total_loss"] < best_val_loss:
                 best_val_loss = validation["total_loss"]
