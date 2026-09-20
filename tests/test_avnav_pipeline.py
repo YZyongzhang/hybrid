@@ -11,7 +11,7 @@ import torch
 import yaml
 
 from configs.default import get_config
-from Dataset.dataset_avnav import AVNavDataset, convert_pickle_to_pt
+from Dataset.dataset_avnav import AVNavDataset, ShardBatchSampler, convert_pickle_to_pt
 from experiment.avnav.run import build_datasets
 from experiment.avnav.train_class.hybrid_train import angle_to_sector_label
 
@@ -87,6 +87,32 @@ class PipelineTest(unittest.TestCase):
                                 capture_output=True, text=True, timeout=90)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue((self.root / "reloaded/model_epoch_1.pth").exists())
+        self.assertTrue((checkpoints / "best.pth").exists())
+        import json
+        history = json.loads((checkpoints / "metrics.json").read_text())
+        self.assertEqual(history[0]["train"]["samples"], 4)
+        self.assertEqual(history[0]["val"]["samples"], 2)
+
+    def test_collector_audio_tuple_and_shard_sampler(self):
+        file = self.raw / "0.pkl"
+        with file.open("rb") as handle:
+            data = pickle.load(handle)
+        for obs in data["obs"]:
+            obs["spectrogram"] = (obs["spectrogram"][0], np.zeros((2, 16000)))
+        with file.open("wb") as handle:
+            pickle.dump(data, handle)
+        destination = self.root / "pt"
+        convert_pickle_to_pt(self.raw, destination, shard_size=3, shuffle=False)
+        dataset = AVNavDataset(destination)
+        self.assertEqual(tuple(dataset[0][0].shape), (65, 26, 2))
+        sampler = ShardBatchSampler(dataset, 1, seed=42)
+        batches = list(sampler)
+        self.assertEqual(sorted(index for batch in batches for index in batch), list(range(6)))
+        self.assertEqual(len(batches), len(sampler))
+        self.assertEqual(batches, list(ShardBatchSampler(dataset, 1, seed=42)))
+        self.assertNotEqual(batches, list(sampler))
+        for a, b in zip(batches[::2], batches[1::2]):
+            self.assertEqual(a[0] // 2, b[0] // 2)
 
     def test_sector_boundaries(self):
         angles = torch.tensor([-180, -135, 0, 179, 180, 540], dtype=torch.float32)

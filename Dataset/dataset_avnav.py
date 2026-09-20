@@ -8,7 +8,7 @@ import random
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Sampler
 from tqdm import tqdm
 
 FIELDS = ("audios", "rgb", "depth", "angles", "actions")
@@ -30,7 +30,11 @@ def _observation(obs):
     depth = torch.as_tensor(np.asarray(obs["depth"])).float()
     if depth.ndim == 2:
         depth = depth.unsqueeze(-1)
-    audio = torch.as_tensor(np.asarray(obs["spectrogram"])).float()
+    spectrogram = obs["spectrogram"]
+    # The collector stores (spectrogram, waveform) for multiple-source audio.
+    if isinstance(spectrogram, tuple) and len(spectrogram) == 2:
+        spectrogram = spectrogram[0]
+    audio = torch.as_tensor(np.asarray(spectrogram)).float()
     if audio.ndim == 4 and audio.shape[0] == 1:
         audio = audio[0]
     if rgb.ndim != 3 or rgb.shape[-1] != 3:
@@ -110,7 +114,8 @@ def convert_pickle_to_pt(source, destination, shard_size=256, shuffle=True, seed
     flush()
     if not total:
         raise ValueError(f"No transitions found in {source}")
-    manifest = {"samples": total, "shards": shards, "sound_label_to_id": sound_labels}
+    manifest = {"samples": total, "shards": shards, "sound_label_to_id": sound_labels,
+                "source": str(Path(source).resolve()), "episodes": len(files)}
     (destination / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"Converted {total} transitions into {len(shards)} shards at {destination}")
     return [destination / shard["file"] for shard in shards]
@@ -131,9 +136,19 @@ class AVNavDataset(Dataset):
         self._cache = OrderedDict()
         self.ends = []
         total = 0
+        manifests = {}
         for file in self.files:
-            shard = self._read(file)
-            total += len(shard["actions"])
+            if file.parent not in manifests:
+                manifest = file.parent / "manifest.json"
+                manifests[file.parent] = ({item["file"]: item["samples"] for item in
+                                          json.loads(manifest.read_text())["shards"]}
+                                         if manifest.exists() else {})
+            count = manifests[file.parent].get(file.name)
+            if count is None:
+                count = len(self._read(file)["actions"])
+            if not isinstance(count, int) or count < 1:
+                raise ValueError(f"{file}: invalid sample count {count}")
+            total += count
             self.ends.append(total)
         if not total:
             raise ValueError("PT dataset contains no samples")
@@ -163,7 +178,38 @@ class AVNavDataset(Dataset):
             if len(self._cache) >= self.cache_size:
                 self._cache.popitem(last=False)
             self._cache[shard_index] = self._read(self.files[shard_index])
+            expected = self.ends[shard_index] - (self.ends[shard_index - 1] if shard_index else 0)
+            if len(self._cache[shard_index]["actions"]) != expected:
+                raise ValueError(f"{self.files[shard_index]}: manifest sample count mismatch")
         self._cache.move_to_end(shard_index)
         shard = self._cache[shard_index]
         return tuple(shard[key][offset].float() if key != "actions" else shard[key][offset].long()
                      for key in FIELDS)
+
+
+class ShardBatchSampler(Sampler):
+    """Shuffle shards and their samples, reading each shard only once per worker/epoch."""
+    def __init__(self, dataset, batch_size, seed=42):
+        if batch_size < 1:
+            raise ValueError("batch_size must be positive")
+        self.ends = dataset.ends
+        self.batch_size = batch_size
+        self.seed = seed
+        self.epoch = 0
+
+    def __iter__(self):
+        rng = random.Random(self.seed + self.epoch)
+        self.epoch += 1
+        shards = list(range(len(self.ends)))
+        rng.shuffle(shards)
+        for shard in shards:
+            start = self.ends[shard - 1] if shard else 0
+            indices = list(range(start, self.ends[shard]))
+            rng.shuffle(indices)
+            for offset in range(0, len(indices), self.batch_size):
+                yield indices[offset:offset + self.batch_size]
+
+    def __len__(self):
+        starts = [0] + self.ends[:-1]
+        return sum((end - start + self.batch_size - 1) // self.batch_size
+                   for start, end in zip(starts, self.ends))

@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 from configs.default import get_config
 from experiment.avnav.config import resolve_path
-from Dataset.dataset_avnav import AVNavDataset, convert_pickle_to_pt, get_files
+from Dataset.dataset_avnav import AVNavDataset, ShardBatchSampler, convert_pickle_to_pt, get_files
 
 
 def run_conversion(config):
@@ -53,11 +53,12 @@ def run_training(config):
     if device.type == "cuda" and not torch.cuda.is_available():
         raise RuntimeError("CUDA is unavailable; set TRAIN.DEVICE to cpu or auto")
     train_data, val_data = build_datasets(cfg, config.SEED)
-    loader_options = dict(batch_size=cfg.BATCH_SIZE, num_workers=cfg.NUM_WORKERS,
-                          pin_memory=device.type == "cuda")
-    train_loader = DataLoader(train_data, shuffle=True,
-                              generator=torch.Generator().manual_seed(config.SEED), **loader_options)
-    val_loader = DataLoader(val_data, shuffle=False, **loader_options)
+    loader_options = dict(num_workers=cfg.NUM_WORKERS, pin_memory=device.type == "cuda",
+                          persistent_workers=cfg.NUM_WORKERS > 0)
+    train_loader = DataLoader(train_data,
+                              batch_sampler=ShardBatchSampler(train_data, cfg.BATCH_SIZE, config.SEED),
+                              **loader_options)
+    val_loader = DataLoader(val_data, batch_size=cfg.BATCH_SIZE, shuffle=False, **loader_options)
 
     from experiment.avnav.model.hybrid import Network
     from experiment.avnav.train_class.hybrid_train import Train
