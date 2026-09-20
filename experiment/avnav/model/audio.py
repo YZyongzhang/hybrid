@@ -2,9 +2,27 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from ss_baselines.common.utils import Flatten
-from sen_baselines.enmus.models.seldnet import MultiHeadAttentionLayer
-from sen_baselines.enmus.models.visual_cnn import conv_output_dim, layer_init
+from experiment.avnav.model.Encoder import MultiHeadAttention
+
+
+class MultiHeadAttentionLayer(MultiHeadAttention):
+    """Attend over tokens within each sample, retaining the batch dimension."""
+    def __init__(self, hidden_size, n_heads, dropout):
+        super().__init__(hidden_size, n_heads)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, query, key, value):
+        if query.ndim == 2:
+            query, key, value = (item.unsqueeze(1) for item in (query, key, value))
+        return self.dropout(super().forward(query, key, value))
+
+
+def layer_init(module):
+    for layer in module.modules():
+        if isinstance(layer, (nn.Linear, nn.Conv2d)):
+            nn.init.kaiming_normal_(layer.weight, nonlinearity="relu")
+            if layer.bias is not None:
+                nn.init.zeros_(layer.bias)
 
 class AudioCRNN(nn.Module):
     def __init__(self) -> None:
@@ -24,13 +42,7 @@ class AudioCRNN(nn.Module):
         for kernel_size, stride in zip(
             self._cnn_layers_kernel_size, self._cnn_layers_stride
         ):
-            cnn_dimensions = conv_output_dim(
-                dimension=cnn_dimensions,
-                padding=np.array([0, 0], dtype=np.float32),
-                dilation=np.array([1, 1], dtype=np.float32),
-                kernel_size=np.array(kernel_size, dtype=np.float32),
-                stride=np.array(stride, dtype=np.float32),
-            )
+            cnn_dimensions = (cnn_dimensions - np.array(kernel_size)) // np.array(stride) + 1
             
         self.cnn = nn.Sequential(
             nn.Conv2d(
@@ -53,7 +65,7 @@ class AudioCRNN(nn.Module):
                 kernel_size=self._cnn_layers_kernel_size[2],
                 stride=self._cnn_layers_stride[2],
             ),
-            Flatten(),
+            nn.Flatten(),
             nn.Linear(64 * cnn_dimensions[0] * cnn_dimensions[1], 128),
             nn.ReLU(),
             nn.LayerNorm(128),

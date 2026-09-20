@@ -3,7 +3,7 @@ import sys
 import torch
 import torch.nn as nn
 import torch.functional as F
-from network.hybrid.Encoder import Encoder
+from experiment.avnav.model.Encoder import Encoder
 
 class PositionalEcoder(nn.Module):
     def __init__(self, max_len = 10000, d_models = 128 , device = None):
@@ -15,7 +15,7 @@ class PositionalEcoder(nn.Module):
         self.max_len = max_len
         self.d_models = d_models
         # 优先构造出整个位置编码矩阵
-        self.position_matrix = torch.zeros(max_len , self.d_models , device=self.device)
+        self.register_buffer("position_matrix", torch.zeros(max_len, self.d_models, device=device), persistent=False)
 
         self.position_matrix.requires_grad = False # 1. 后续相加的时候生成的向量还会有梯度？后续相加后有梯度，但是位置编码不参与反向传播。
 

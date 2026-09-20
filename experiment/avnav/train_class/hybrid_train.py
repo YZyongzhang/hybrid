@@ -2,8 +2,6 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from network.hybrid.semantic_audio import SemanticAudioLoss
-
 NUM_SECTORS = 8
 
 
@@ -41,12 +39,13 @@ class Train:
         self.optimizer = Adam
 
         self.action_loss_weight = 1.0
-        self.semantic_audio = SemanticAudioLoss(
-            num_sectors=NUM_SECTORS,
-            lambda_classifier=1.0,
-            lambda_classifier_entropy=0.0,
-            lambda_regressor=0.0,
-        )
+
+    @staticmethod
+    def semantic_audio(angle_logits, angle_deg):
+        labels = angle_to_sector_label(angle_deg)
+        loss = F.cross_entropy(angle_logits, labels)
+        return {"labels": labels, "preds": angle_logits.argmax(dim=1),
+                "classifier_loss": loss, "total_loss": loss}
 
     def _forward(self, batch_audio, batch_rgb, batch_depth):
         return self.train_model.forward_joint(batch_audio, batch_rgb, batch_depth)
@@ -60,6 +59,7 @@ class Train:
         global_step = 0
 
         for ep in range(self.epoch):
+            self.train_model.train()
             local_step = 0
             epoch_total_loss = 0.0
             epoch_action_loss = 0.0

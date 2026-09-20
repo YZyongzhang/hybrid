@@ -164,7 +164,7 @@ class Network(nn.Module):
         - action_logits: from AV fusion branch
         - angle_logits: from audio encoder head (8 sectors)
         """
-        _, action_logits = self.forward(audio, rgb, depth)
+        _, _, action_logits = self.forward(audio, rgb, depth)
         if len(audio.shape) == 3:
             audio = audio.unsqueeze(0)
         angle_logits = self.audio_encoder(audio)
