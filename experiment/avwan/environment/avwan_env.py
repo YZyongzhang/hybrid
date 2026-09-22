@@ -3,6 +3,8 @@
 The planner is provided by SoundSpaces. Unlike its PPO MapNavEnv, this wrapper
 never resets inside step(): the returned observation belongs to the same episode.
 """
+import sys
+sys.path.append("/home/getuanhui/project/habitat")
 from copy import deepcopy
 import math
 from numbers import Integral
@@ -14,6 +16,7 @@ from gym import spaces
 import numpy as np
 from ss_baselines.common.baseline_registry import baseline_registry
 from ss_baselines.av_wan.models.planner import Planner
+from soundspaces.datasets.audionav_dataset import AudioNavDataset
 
 
 def get_env_class(env_name: str) -> Type[habitat.RLEnv]:
