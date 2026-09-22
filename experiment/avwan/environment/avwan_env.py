@@ -17,7 +17,9 @@ import numpy as np
 from ss_baselines.common.baseline_registry import baseline_registry
 from ss_baselines.av_wan.models.planner import Planner
 from soundspaces.datasets.audionav_dataset import AudioNavDataset
-
+from collections import deque
+import networkx as nx
+from habitat.utils.geometry_utils import quaternion_rotate_vector
 
 def get_env_class(env_name: str) -> Type[habitat.RLEnv]:
     return baseline_registry.get_env(env_name)
@@ -135,6 +137,120 @@ class AVWANRLEnv(habitat.RLEnv):
         mask[self.stop_action] = True
         return mask
 
+    def get_expert_map_action(self):
+        """Return the best local waypoint ID under shortest-path reward scoring.
+
+        BFS searches (cell, heading), counting both turns and forward moves in
+        the discrete SoundSpaces navigation graph. Scores use the undiscounted
+        reward returned by step(), not last_transition's discounted reward.
+        This is an oracle over known graph paths; the planner's later choices
+        and map updates can produce a different executed path.
+        """
+
+
+        if self._needs_reset:
+            raise RuntimeError("Call reset() before requesting an expert action")
+        sim = self.habitat_env.sim
+        if self._continuous:
+            raise NotImplementedError("Expert map BFS requires discrete SoundSpaces navigation")
+
+        size = self._map_size
+        center = size // 2
+        mask = self.action_mask()
+        agent_state = sim.get_agent_state()
+        origin = np.asarray(agent_state.position, dtype=np.float64)
+        resolution = float(self._core_env_config.TASK.ACTION_MAP.MAP_RESOLUTION)
+        horizon = self._prediction_interval
+        max_steps = self.habitat_env._max_episode_steps
+        if max_steps:
+            horizon = min(horizon, max_steps - self.habitat_env._elapsed_steps)
+        if horizon < 1:
+            raise RuntimeError("Episode step limit reached; call reset()")
+
+        # Convert the egocentric grid to simulator positions. Mapper coordinates
+        # are relative to the initial pose, and are NOT simulator world positions.
+        cells = {}
+        for action in range(size * size):
+            if not mask[action]:
+                continue
+            row, col = divmod(action, size)
+            offset = np.array([(col - center) * resolution, 0.0,
+                               (row - center) * resolution])
+            position = origin + quaternion_rotate_vector(agent_state.rotation, offset)
+            try:
+                node = sim._position_to_index(position.tolist())
+            except ValueError:
+                # An apparently free/unexplored map cell may not exist in the
+                # simulator's ground-truth navigation graph.
+                continue
+            goal = self.planner.get_map_coordinates(action)
+            planner_node = self.planner._map_index_to_graph_nodes([goal])[0]
+            if node in sim.graph and planner_node in self.planner._graph:
+                cells[action] = (node, planner_node)
+
+        current_distance = self._distance_target()
+        previous_distance = self._previous_target_distance
+        slack = float(self._rl_config.SLACK_REWARD) if self._rl_config.WITH_TIME_PENALTY else 0.0
+        scale = float(self._rl_config.DISTANCE_REWARD_SCALE) if self._rl_config.WITH_DISTANCE_REWARD else 0.0
+
+        # STOP consumes one primitive step, including when it fails. Merely
+        # reaching the sound source with a movement action earns no success bonus.
+        stop_reward = slack + scale * (previous_distance - current_distance)
+        if sim.reaching_goal:
+            stop_reward += self._rl_config.SUCCESS_REWARD
+        best_action = self.stop_action
+        best_key = (stop_reward, -current_distance, -1, -best_action)
+        if self.stop_action not in cells:
+            return best_action
+
+        # In the current egocentric frame: right, down, left, up. Initially the
+        # agent faces up. Each BFS edge costs exactly one primitive action.
+        directions = ((0, 1), (1, 0), (0, -1), (-1, 0))
+        queue = deque([(self.stop_action, 3, 0)])
+        visited = {(self.stop_action, 3)}
+        scored = {self.stop_action}
+        targets = [goal.position for goal in self.current_episode.goals]
+        while queue:
+            action, heading, steps = queue.popleft()
+            if action not in scored:
+                scored.add(action)
+                node = cells[action][0]
+                position = sim.graph.nodes[node]["point"]
+                try:
+                    distance = float(sim.geodesic_distance(position, targets))
+                except (nx.NetworkXNoPath, nx.NodeNotFound):
+                    distance = float("inf")
+                if math.isfinite(distance):
+                    # Distance progress telescopes across all primitive steps;
+                    # rotations contribute only their time penalty.
+                    reward = steps * slack + scale * (previous_distance - distance)
+                    key = (reward, -distance, -steps, -action)
+                    if key > best_key:
+                        best_action, best_key = action, key
+            if steps >= horizon:
+                continue
+
+            successors = [(action, (heading - 1) % 4),
+                          (action, (heading + 1) % 4)]
+            row, col = divmod(action, size)
+            dr, dc = directions[heading]
+            next_row, next_col = row + dr, col + dc
+            if 0 <= next_row < size and 0 <= next_col < size:
+                next_action = next_row * size + next_col
+                if next_action in cells:
+                    node, planner_node = cells[action]
+                    next_node, next_planner_node = cells[next_action]
+                    # Free endpoints alone do not imply a traversable edge.
+                    if (sim.graph.has_edge(node, next_node)
+                            and self.planner._graph.has_edge(planner_node, next_planner_node)):
+                        successors.append((next_action, heading))
+            for next_state in successors:
+                if next_state not in visited:
+                    visited.add(next_state)
+                    queue.append((*next_state, steps + 1))
+
+        return int(best_action)
+    
     def step(self, action):
         if self._needs_reset:
             raise RuntimeError("Call reset() before step(), including after episode termination")
