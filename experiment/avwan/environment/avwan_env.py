@@ -81,14 +81,9 @@ class AVWANRLEnv(habitat.RLEnv):
         return self._env.get_metrics()['distance_to_goal']
 
     def _episode_success(self):
-        # import pdb; pdb.set_trace()
-        # print(f"in ss env 101 , target_distence is {self._distance_target()}")
         if self._env.task.is_stop_called and \
                 ((self._continuous and self._distance_target() < self._success_distance) or
                  (not self._continuous and self._env.sim.reaching_goal)):
-        # print(f'self._env.task.is_stop_called : {self._env.task.is_stop_called}')
-        # import pdb; pdb.set_trace()
-        # if self._env.task.is_stop_called:
             return True
         return False
 
@@ -101,6 +96,5 @@ class AVWANRLEnv(habitat.RLEnv):
     def get_info(self, observations):
         return self.habitat_env.get_metrics()
 
-    # for data collection
     def get_current_episode_id(self):
         return self.habitat_env.current_episode.episode_id
