@@ -33,15 +33,22 @@ def select_cases(seed, count):
     scenes = sorted(p.name.removesuffix('.json.gz') for p in CONTENT.glob('*.json.gz')
                     if p.name.removesuffix('.json.gz') not in {c['scene'] for c in cases})
     rng.shuffle(scenes)
-    for index, scene in enumerate(scenes[:count - len(cases)]):
+    for scene in scenes:
+        if len(cases) >= count:
+            break
+        episodes = read_scene(scene)['episodes']
+        if not episodes:
+            continue
+        index = len(cases) - 3
         # Cover short, medium and long routes in separate randomly drawn scenes.
         low, high = [(0, 5), (5, 15), (15, float('inf'))][index % 3]
-        episodes = read_scene(scene)['episodes']
         pool = [ep for ep in episodes if low < ep['info']['geodesic_distance'] <= high]
         ep = rng.choice(pool or episodes)
         cases.append(dict(scene=scene, episode_id=str(ep['episode_id']),
                           seed=seed + index, selection='sample',
                           dataset_distance=ep['info']['geodesic_distance']))
+    if len(cases) != count:
+        raise ValueError(f'Requested {count} scenes, but only {len(cases)} have episodes')
     return cases
 
 
@@ -55,13 +62,16 @@ def run_case(case, out):
     from utils.visualizations import plot_top_down_map_waypoint
 
     result = dict(case, status='error', steps=[], runtime_error=None, blocked=None,
-                  success=False, reset_ok=False, forward_attempts=0, forward_collisions=0)
+                  success=False, reset_ok=False, forward_attempts=0, forward_collisions=0,
+                  depth_probe_attempts=0, collision_edges_retained=0, executed_length_m=0.0)
     env = None
     collision_edges = Counter()
     try:
         random.seed(case['seed'])
         np.random.seed(case['seed'])
         config = get_avwan_config(opts=['TASK_CONFIG.DATASET.CONTENT_SCENES', [case['scene']]])
+        result['prediction_interval'] = int(config.PREDICTION_INTERVAL)
+        result['max_episode_steps'] = int(config.TASK_CONFIG.ENVIRONMENT.MAX_EPISODE_STEPS)
         raw = read_scene(case['scene'])
         raw['episodes'] = [ep for ep in raw['episodes'] if str(ep['episode_id']) == case['episode_id']]
         assert len(raw['episodes']) == 1
@@ -72,17 +82,37 @@ def run_case(case, out):
         update = env.planner.update_map_and_graph
 
         def record_update(observation):
+            collided_edge = None
             if env.planner._prev_action == HabitatSimActions.MOVE_FORWARD:
                 result['forward_attempts'] += 1
+                forward = env.planner.mapper.get_adjacent_point_coordinates()
+                result['depth_probe_attempts'] += int(env.planner.is_depth_probe(forward))
                 if bool(np.asarray(observation['collision']).flat[0]):
                     result['forward_collisions'] += 1
                     x, y = env.planner.mapper.get_maps_and_agent_pose()[2:4]
-                    collision_edges[(int(x), int(y), env.planner._prev_next_node)] += 1
-            return update(observation)
+                    collided_edge = env.planner._edge_key(
+                        *env.planner._map_index_to_graph_nodes([(x, y), forward]))
+                    collision_edges[collided_edge] += 1
+            value = update(observation)
+            if collided_edge is not None:
+                result['collision_edges_retained'] += int(env.planner._graph.has_edge(*collided_edge))
+            return value
 
         env.planner.update_map_and_graph = record_update
         env.seed(case['seed'])
         obs = env.reset()
+        previous_position = env.habitat_env.sim.get_agent_state().position.copy()
+        simulator_step = env.habitat_env.sim.step
+
+        def record_simulator_step(*args, **kwargs):
+            nonlocal previous_position
+            observation = simulator_step(*args, **kwargs)
+            position = env.habitat_env.sim.get_agent_state().position.copy()
+            result['executed_length_m'] += float(np.linalg.norm(position - previous_position))
+            previous_position = position
+            return observation
+
+        env.habitat_env.sim.step = record_simulator_step
         info = env.get_info(obs)
         result['initial_distance'] = float(info['distance_to_goal'])
         result['min_distance'] = result['initial_distance']
@@ -122,6 +152,7 @@ def run_case(case, out):
                       truncated=bool(info.get('truncated', False)),
                       final_distance=float(info['distance_to_goal']), spl=float(info['spl']),
                       primitive_steps=sum(s['num_steps'] for s in result['steps']),
+                      max_collisions_per_edge=max(collision_edges.values(), default=0),
                       most_collided_edges=collision_edges.most_common(3))
         if result['success']:
             assert result['final_distance'] == 0 and action == env.stop_action
@@ -133,10 +164,14 @@ def run_case(case, out):
             else:
                 raise AssertionError('Expert must require reset after episode termination')
         Image.fromarray(plot_top_down_map_waypoint(info)).save(out.with_suffix('.png'))
+        assert result['max_collisions_per_edge'] <= 1, 'Repeated collision on a blocked edge'
+        assert result['collision_edges_retained'] == 0, 'Collision did not remove its edge'
         # Snapshot collision counts above; reset is also checked for failed cases.
         env.reset()
         assert len(env.bfs_expert.visit_counts) == 1 and not env.bfs_expert.failed_targets
         assert env.bfs_expert.last_decision is None and not env.waypoint_positions
+        assert not env.planner._collision_edges and not env.planner._verified_edges
+        assert not env.planner._verified_nodes
         result['reset_ok'] = True
         result['status'] = ('success' if result['success'] else
                             'blocked' if result['blocked'] else 'timeout' if result['truncated'] else 'failure')
