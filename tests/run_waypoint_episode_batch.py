@@ -201,3 +201,7 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+    
+    #   python tests/run_waypoint_episode_batch.py \
+    # --output outputs/waypoint_batch_test \
+    # --count 12

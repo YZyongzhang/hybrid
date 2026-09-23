@@ -182,6 +182,7 @@ class AVWANRLEnv(habitat.RLEnv):
         return action
 
     def step(self, action):
+        
         if self._needs_reset:
             raise RuntimeError("Call reset() before step(), including after episode termination")
         action = self._parse_action(action)
@@ -218,7 +219,7 @@ class AVWANRLEnv(habitat.RLEnv):
         for step_index in range(self._prediction_interval):
             # Preserve the official first-step fallback for blocked/unreachable goals.
             # This ensures every stored transition has at least one simulator step.
-            if step_index and not stop and not self.planner.check_navigability(goal):
+            if step_index and not stop and not self.planner.check_waypoint_executability(goal):
                 cant_reach_waypoint = True
                 break
             primitive = int(self.planner.plan(observation, goal, stop=stop))
@@ -235,7 +236,7 @@ class AVWANRLEnv(habitat.RLEnv):
                 break
         self.planner.add_maps_to_observation(observation)
         if not stop and not reaching_waypoint:
-            cant_reach_waypoint |= not self.planner.check_navigability(goal)
+            cant_reach_waypoint |= not self.planner.check_waypoint_executability(goal)
         self.bfs_expert.observe_transition(
             action=action, waypoint_goal=goal, visited_cells=visited_cells,
             reached=bool(reaching_waypoint), blocked=bool(cant_reach_waypoint))

@@ -32,12 +32,14 @@ class _Candidate:
     expected_reward: float = 0.0
     unexplored: float = 0.0
     penalty: float = 0.0
+    depth_probe: bool = False
 
 
 class BFSExpert:
     """Select progress waypoints, then exploration/detour targets if blocked.
 
     Search counts turns and forward moves in (planner node, heading) space.
+    If normal progress is unavailable, adjacent depth-only blocks can be probed.
     Costs are estimates: the planner can choose another path or discover new
     obstacles during execution. History is updated only from executed moves.
     """
@@ -140,7 +142,7 @@ class BFSExpert:
                 continue
             goal = tuple(int(v) for v in planner.get_map_coordinates(action))
             node = planner._map_index_to_graph_nodes([goal])[0]
-            if node in graph:
+            if node in graph and not planner.is_depth_probe(goal):
                 targets[node] = (action, goal)
 
         # Planner coordinates: east=0, south=1, west=2, north=3.
@@ -197,6 +199,22 @@ class BFSExpert:
                                  + self.visit_penalty * self.recent_cells.count(candidate.goal))
         return candidates
 
+    def _depth_probe_candidates(self, planner, observation, horizon):
+        """One-edge recovery attempts; use the same action mask as execution."""
+        mask = np.asarray(observation['action_map']).reshape(-1) > 0.5
+        _, _, x, y, orientation = planner.mapper.get_maps_and_agent_pose()
+        candidates = []
+        for action in range(self.map_size ** 2):
+            goal = tuple(int(v) for v in planner.get_map_coordinates(action))
+            if not mask[action] or not planner.is_depth_probe(goal):
+                continue
+            desired = int(round(np.rad2deg(np.arctan2(goal[1] - y, goal[0] - x)))) % 360
+            turns = int((desired - orientation) % 360) // 90
+            steps = 1 + min(turns, 4 - turns)
+            if steps <= horizon:
+                candidates.append(_Candidate(action, goal, steps, depth_probe=True))
+        return candidates
+
     @staticmethod
     def _select_progress_waypoint(candidates):
         progress = [c for c in candidates if c.distance is not None and c.progress > 1e-6
@@ -232,18 +250,24 @@ class BFSExpert:
             candidates = self._search_reachable_waypoints(
                 planner, observation, max(self.prediction_interval, 3))
             partial = bool(candidates)
-        if not candidates:
-            self.last_decision = dict(action=None, mode='blocked')
-            raise NoReachableWaypointError(
-                'Planner has no reachable non-STOP waypoint in the action map; '
-                'explicit observation/recovery is required')
         scored = self._score_waypoint_candidates(
             candidates, planner, sim, target_positions, current_distance)
         selected = self._select_progress_waypoint(scored)
         mode = 'progress'
+        probes = []
         if selected is None:
-            selected = self._select_recovery_waypoint(scored)
-            mode = 'recovery'
+            probes = self._depth_probe_candidates(planner, observation, horizon)
+            probes = self._score_waypoint_candidates(
+                probes, planner, sim, target_positions, current_distance)
+            selected = self._select_progress_waypoint(probes)
+            mode = 'depth_probe'
+            if selected is None:
+                recovery = scored + probes
+                if not recovery:
+                    self.last_decision = dict(action=None, mode='blocked')
+                    raise NoReachableWaypointError('No reachable waypoint or untried adjacent depth probe')
+                selected = self._select_recovery_waypoint(recovery)
+                mode = 'depth_probe' if selected.depth_probe else 'recovery'
         self.last_decision = dict(action=selected.action, mode=mode,
                                   waypoint_goal=selected.goal, estimated_steps=selected.steps,
                                   expected_reward=selected.expected_reward,
@@ -251,5 +275,6 @@ class BFSExpert:
                                   target_distance=selected.distance,
                                   unexplored_fraction=selected.unexplored,
                                   history_penalty=selected.penalty, partial_execution=partial,
-                                  candidate_count=len(candidates))
+                                  depth_probe=selected.depth_probe,
+                                  candidate_count=len(candidates) + len(probes))
         return int(selected.action)

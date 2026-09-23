@@ -16,7 +16,8 @@ from experiment.avwan.environment.Mapper import Mapper, to_array
 
 
 class Planner:
-    def __init__(self, task_config=None, use_acoustic_map=False, model_dir=None, masking=True):
+    def __init__(self, task_config=None, use_acoustic_map=False, model_dir=None, masking=True,
+                 allow_depth_probes=None):
         self.mapper = Mapper(
             gm_config=task_config.TASK.GEOMETRIC_MAP,
             am_config=task_config.TASK.ACOUSTIC_MAP,
@@ -37,6 +38,15 @@ class Planner:
         self._base_graph = self._graph.copy()
         self._removed_edges = set()
         self._removed_nodes = set()
+        # Failed transitions in the static, discrete simulator remain blocked
+        # for this episode, independently of depth-based occupancy recovery.
+        self._collision_edges = set()
+        self._verified_edges = set()
+        self._verified_nodes = set()
+        # A discrete forward action either reaches the next node or collides.
+        # This evidence rule does not apply to partial continuous movements.
+        self._allow_depth_probes = (task_config.SIMULATOR.TYPE == 'SoundSpacesSim'
+                                    if allow_depth_probes is None else bool(allow_depth_probes))
         self._model_dir = model_dir
         self._masking = masking
 
@@ -51,6 +61,9 @@ class Planner:
         self._graph = self._base_graph.copy()
         self._removed_nodes.clear()
         self._removed_edges.clear()
+        self._collision_edges.clear()
+        self._verified_edges.clear()
+        self._verified_nodes.clear()
 
     def update_map_and_graph(self, observation):
         ego_map = to_array(observation['ego_map'])
@@ -58,11 +71,25 @@ class Planner:
         collided = to_array(observation['collision'][0])
         intensity = to_array(observation['intensity'][0]) if 'intensity' in observation else None
 
+        if self._allow_depth_probes and self._prev_action == HabitatSimActions.MOVE_FORWARD and not collided:
+            _, _, x, y, _ = self.mapper.get_maps_and_agent_pose()
+            a, b = self._map_index_to_graph_nodes(
+                [(x, y), self.mapper.get_adjacent_point_coordinates()])
+            if self._base_graph.has_edge(a, b):
+                self._verified_edges.add(self._edge_key(a, b))
+                self._verified_nodes.update((a, b))
+
         if collided and self._prev_action == HabitatSimActions.MOVE_FORWARD:
             # A failed forward action does not change the mapper pose. Still
             # integrate the depth image observed at the actual current pose.
-            # Collision alone does not delete an edge; only depth occupancy
-            # determines graph connectivity in this variant.
+            # Block the attempted forward edge, not the destination node: that
+            # node may still be reachable from another direction. Derive the
+            # edge from the actual heading, including the no-path fallback.
+            _, _, x, y, _ = self.mapper.get_maps_and_agent_pose()
+            a, b = self._map_index_to_graph_nodes(
+                [(x, y), self.mapper.get_adjacent_point_coordinates()])
+            if self._base_graph.has_edge(a, b):
+                self._collision_edges.add(self._edge_key(a, b))
             previous_action = None
         else:
             previous_action = self._prev_action
@@ -84,7 +111,7 @@ class Planner:
                 mask = np.zeros((self._action_map_size, self._action_map_size), dtype=np.float32)
                 for action in range(mask.size):
                     node = self._map_index_to_graph_nodes([self.get_map_coordinates(action)])[0]
-                    mask.flat[action] = node in reachable
+                    mask.flat[action] = node in reachable or self.is_depth_probe(self.get_map_coordinates(action))
                 mask.flat[mask.size // 2] = 1  # STOP must remain available.
             else:
                 mask = self.mapper.get_egocentric_occupancy_map(
@@ -92,6 +119,7 @@ class Planner:
             observation['action_map'] = np.expand_dims(mask, -1).astype(np.float32)
 
     def plan(self, observation: dict, goal, stop, distribution=None) -> int:
+        # import pdb;pdb.set_trace()
         geometric_map, acoustic_map, x, y, orientation = self.mapper.get_maps_and_agent_pose()
         graph_nodes = self._map_index_to_graph_nodes([(x, y), (goal[0], goal[1])])
 
@@ -100,7 +128,10 @@ class Planner:
             self._prev_next_node = None
         else:
             try:
-                shortest_path = nx.shortest_path(self._graph, source=graph_nodes[0], target=graph_nodes[1])
+                if self.is_depth_probe(goal):
+                    shortest_path = graph_nodes
+                else:
+                    shortest_path = nx.shortest_path(self._graph, source=graph_nodes[0], target=graph_nodes[1])
                 if len(shortest_path) == 1:
                     # STOP is controlled by the high-level policy, not proximity
                     # to an intermediate waypoint. Avoid indexing past the path.
@@ -108,7 +139,7 @@ class Planner:
                     self._prev_action = HabitatSimActions.TURN_LEFT
                     return self._prev_action
                 # decide if the agent needs to rotate based on the connectivity with the next node
-                next_node_idx = self._graph.nodes[shortest_path[1]]['map_index']
+                next_node_idx = self._base_graph.nodes[shortest_path[1]]['map_index']
                 self._prev_next_node = shortest_path[1]
                 desired_orientation = np.round(
                     np.rad2deg(np.arctan2(next_node_idx[1] - y, next_node_idx[0] - x))) % 360
@@ -136,7 +167,7 @@ class Planner:
                     action = np.random.choice([HabitatSimActions.TURN_LEFT, HabitatSimActions.TURN_RIGHT])
                 self._prev_next_node = adjacent_node if action == HabitatSimActions.MOVE_FORWARD else None
         self._prev_action = action
-
+        print(f"action = {action}")
         return action
 
     def get_map_coordinates(self, relative_goal):
@@ -156,6 +187,23 @@ class Planner:
         return (all(node in self._graph for node in graph_nodes)
                 and nx.has_path(self._graph, source=graph_nodes[0], target=graph_nodes[1]))
 
+    def is_depth_probe(self, goal):
+        """An adjacent depth-blocked transition can be tested once via collision feedback.
+
+        It is an executable attempt, not a claim of known free space. Never
+        reopen collision blocks, and never probe across more than one edge.
+        """
+        if not self._allow_depth_probes:
+            return False
+        _, _, x, y, _ = self.mapper.get_maps_and_agent_pose()
+        a, b = self._map_index_to_graph_nodes([(x, y), goal])
+        return (a in self._graph and self._base_graph.has_edge(a, b)
+                and not self._graph.has_edge(a, b)
+                and self._edge_key(a, b) not in self._collision_edges)
+
+    def check_waypoint_executability(self, goal):
+        return self.is_depth_probe(goal) or self.check_navigability(goal)
+
     @staticmethod
     def _edge_key(a, b):
         return tuple(sorted((a, b)))
@@ -167,15 +215,15 @@ class Planner:
         uses only the original cardinal grid topology and observed map state.
         """
         occupancy = self.mapper.get_maps_and_agent_pose()[0][..., 0] > 0.5
-        nodes = self._removed_nodes | set(self._map_index_to_graph_nodes(non_navigable_points))
-        edges = self._removed_edges | {
+        nodes = self._removed_nodes | self._verified_nodes | set(self._map_index_to_graph_nodes(non_navigable_points))
+        edges = self._removed_edges | self._collision_edges | self._verified_edges | {
             self._edge_key(*self._map_index_to_graph_nodes([a, b])) for a, b in blocked_paths}
         for node in nodes:
             if node not in self._base_graph:
                 continue
             edges.update(self._edge_key(node, other) for other in self._base_graph[node])
             x, y = self._base_graph.nodes[node]['map_index']
-            if occupancy[y, x]:
+            if occupancy[y, x] and node not in self._verified_nodes:
                 self._removed_nodes.add(node)
                 if node in self._graph:
                     self._graph.remove_node(node)
@@ -188,9 +236,11 @@ class Planner:
                 continue
             x1, y1 = self._base_graph.nodes[a]['map_index']
             x2, y2 = self._base_graph.nodes[b]['map_index']
-            blocked = (a not in self._graph or b not in self._graph
-                       or occupancy[min(y1, y2):max(y1, y2)+1,
-                                    min(x1, x2):max(x1, x2)+1].any())
+            blocked = ((a, b) in self._collision_edges
+                       or a not in self._graph or b not in self._graph
+                       or ((a, b) not in self._verified_edges
+                           and occupancy[min(y1, y2):max(y1, y2)+1,
+                                         min(x1, x2):max(x1, x2)+1].any()))
             if blocked:
                 self._removed_edges.add((a, b))
                 if self._graph.has_edge(a, b):

@@ -1,0 +1,73 @@
+{
+  "scene": "VVfe2KiqLaN",
+  "episode_id": "548",
+  "seed": 20260924,
+  "soundspaces": {
+    "api": "SoundSpacesSim.compute_oracle_actions",
+    "start": [
+      7.051924228668213,
+      -0.07478900253772736,
+      4.53773307800293
+    ],
+    "goal": [
+      4.051924,
+      0.03750699999999996,
+      11.537733
+    ],
+    "initial_distance_m": 14.0,
+    "success": true,
+    "spl": 0.9995512082303423,
+    "done": true,
+    "final_distance_m": 0.0,
+    "collisions": 0,
+    "action_count": 21,
+    "action_counts": {
+      "TURN_RIGHT": 3,
+      "MOVE_FORWARD": 14,
+      "TURN_LEFT": 3,
+      "STOP": 1
+    },
+    "executed_length_m": 14.006285919681435
+  },
+  "habitat_sim": {
+    "api": "habitat_sim.Simulator.make_greedy_follower().find_path(goal)",
+    "binding_workaround": "<built-in method __next__ of PyCapsule object at 0x7fb281e7d630> returned NULL without setting an error",
+    "forward_step_m": 0.25,
+    "turn_degrees": 10,
+    "goal_radius_m": 0.15,
+    "start": [
+      7.051924228668213,
+      -0.022638384252786636,
+      4.53773307800293
+    ],
+    "goal": [
+      4.051924228668213,
+      0.15230600535869598,
+      11.53773307800293
+    ],
+    "dataset_start": [
+      7.051924,
+      -0.074789,
+      4.537733
+    ],
+    "dataset_goal": [
+      4.051924,
+      0.03750699999999996,
+      11.537733
+    ],
+    "start_snap_offset_m": 0.05215061574777302,
+    "goal_snap_offset_m": 0.11479900535895027,
+    "geodesic_length_m": 9.569391250610352,
+    "final_distance_m": 0.13643695414066315,
+    "reached_goal_radius": true,
+    "collisions": 0,
+    "action_count": 68,
+    "action_counts": {
+      "turn_right": 17,
+      "move_forward": 38,
+      "turn_left": 12,
+      "STOP": 1
+    },
+    "executed_length_m": 9.53414112126516
+  }
+}

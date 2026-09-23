@@ -73,28 +73,28 @@ class LocalNavigationTests(unittest.TestCase):
         self.assertEqual(set(self.planner._graph[node]), neighbors)
         self.assertEqual(self.planner._graph.nodes[node]['map_index'], (50, 40))
 
-    def test_collision_preserves_pose_and_does_not_block_edge(self):
+    def test_collision_blocks_edge_until_reset_and_replans_around_it(self):
         planner = self.planner
         self.assertEqual(planner.plan({}, (50, 40), False), Actions.MOVE_FORWARD)
         self.update(self.unknown, collision=True)
         edge = self.nodes((50, 50), (50, 40))
         self.assertEqual(planner.mapper.get_maps_and_agent_pose()[2:4], (50, 50))
-        self.assertTrue(planner._graph.has_edge(*edge))
-        self.assertFalse(planner._removed_edges)
-        # Retrying the same forward action is allowed and must not move the
-        # internal pose if it collides again.
-        self.assertEqual(planner.plan({}, (50, 40), False), Actions.MOVE_FORWARD)
-        self.update(self.unknown, collision=True)
-        self.assertEqual(planner.mapper.get_maps_and_agent_pose()[2:4], (50, 50))
-        self.assertTrue(planner._graph.has_edge(*edge))
+        self.assertFalse(planner._graph.has_edge(*edge))
+        self.assertIn(edge[1], planner._graph)  # Do not discard the free target.
+        self.assertEqual(planner._graph.number_of_edges(), planner._base_graph.number_of_edges() - 1)
+        self.assertTrue(planner.check_navigability((50, 40)))  # A detour exists.
+        self.assertIn(planner.plan({}, (50, 40), False), (Actions.TURN_LEFT, Actions.TURN_RIGHT))
         planner._prev_action = None
         free = self.unknown.copy()
         free[..., 1] = 1
         self.update(free)
         self.update(free)
-        self.assertTrue(planner._graph.has_edge(*edge))
+        self.assertFalse(planner._graph.has_edge(*edge))
+        self.assertFalse(planner._graph.has_edge(*reversed(edge)))
+        self.assertFalse(planner.mapper._geometric_map[..., 0].any())
         planner.reset()
         self.assertTrue(planner._graph.has_edge(*edge))
+        self.assertFalse(planner._collision_edges)
         self.assertFalse(planner.mapper._free_observations.any())
 
     def test_collision_still_integrates_depth_obstacles(self):
@@ -107,9 +107,55 @@ class LocalNavigationTests(unittest.TestCase):
         self.assertFalse(planner._graph.has_edge(*edge))
         self.assertEqual(planner.mapper.get_maps_and_agent_pose()[2:4], (50, 50))
         obstacle[26, 15, 0] = 0
-        self.update(obstacle, collision=True)
-        self.update(obstacle, collision=True)
-        self.assertTrue(planner._graph.has_edge(*edge))
+        planner._prev_action = None
+        self.update(obstacle)
+        self.update(obstacle)
+        self.assertEqual(planner.mapper._geometric_map[45, 50, 0], 0)
+        self.assertFalse(planner._graph.has_edge(*edge))
+
+    def test_node_restoration_does_not_restore_collision_edge(self):
+        planner = self.planner
+        planner.plan({}, (50, 40), False)
+        self.update(self.unknown, collision=True)
+        planner._prev_action = None
+        obstacle = self.unknown.copy()
+        obstacle[21, 15] = (1, 1)
+        self.update(obstacle)
+        target = self.nodes((50, 40))[0]
+        self.assertNotIn(target, planner._graph)
+        obstacle[21, 15, 0] = 0
+        self.update(obstacle)
+        self.update(obstacle)
+        self.assertIn(target, planner._graph)
+        self.assertFalse(planner._graph.has_edge(*self.nodes((50, 50), (50, 40))))
+        self.assertEqual(planner._graph.degree(target), planner._base_graph.degree(target) - 1)
+
+    def test_collision_uses_forward_heading_and_ignores_turns(self):
+        planner = self.planner
+        # A stale next-node hint must not block a different direction.
+        planner._prev_next_node = self.nodes((60, 50))[0]
+        planner._prev_action = Actions.MOVE_FORWARD
+        self.update(self.unknown, collision=True)
+        self.assertFalse(planner._graph.has_edge(*self.nodes((50, 50), (50, 40))))
+        self.assertTrue(planner._graph.has_edge(*self.nodes((50, 50), (60, 50))))
+        blocked = planner._collision_edges.copy()
+        planner._prev_action = Actions.TURN_RIGHT
+        self.update(self.unknown, collision=True)
+        self.assertEqual(planner._collision_edges, blocked)
+
+    def test_collision_disconnection_updates_waypoint_mask(self):
+        planner = self.planner
+        free = self.unknown.copy()
+        free[..., 1] = 1
+        for orientation in (0, 90, 180, 270):
+            planner.mapper._orientation = orientation
+            planner._prev_action = Actions.MOVE_FORWARD
+            self.update(free, collision=True)
+        self.assertFalse(planner.check_navigability((50, 40)))
+        obs = {'action_map': None}
+        planner.add_maps_to_observation(obs)
+        self.assertEqual(obs['action_map'].sum(), 1)
+        self.assertEqual(obs['action_map'][4, 4, 0], 1)
 
     def test_free_observations_align_across_rotations(self):
         obstacle = self.unknown.copy()
@@ -124,7 +170,7 @@ class LocalNavigationTests(unittest.TestCase):
         self.update(obstacle)
         self.assertTrue(self.planner._graph.has_edge(*self.nodes((50, 50), (50, 40))))
 
-    def test_reachable_mask_includes_stop_but_excludes_disconnected_free_node(self):
+    def test_mask_includes_only_adjacent_depth_probes_when_disconnected(self):
         planner = self.planner
         current = self.nodes((50, 50))[0]
         paths = []
@@ -136,8 +182,79 @@ class LocalNavigationTests(unittest.TestCase):
         obs = {'action_map': None}
         planner.add_maps_to_observation(obs)
         self.assertEqual(obs['action_map'].shape, (9, 9, 1))
-        self.assertEqual(obs['action_map'].sum(), 1)
+        self.assertEqual(obs['action_map'].sum(), 5)  # STOP and four one-edge probes.
         self.assertEqual(obs['action_map'][4, 4, 0], 1)
+        self.assertEqual(obs['action_map'][2, 4, 0], 0)  # Cannot probe two edges.
+        self.assertEqual(obs['action_map'][3, 3, 0], 0)  # Cannot probe diagonally.
+        planner._allow_depth_probes = False
+        planner.add_maps_to_observation(obs)
+        self.assertEqual(obs['action_map'].sum(), 1)
+
+    def test_successful_depth_probe_verifies_edge_without_erasing_depth(self):
+        planner = self.planner
+        obstacle = self.unknown.copy()
+        obstacle[26, 15] = (1, 1)
+        obstacle[21, 15] = (1, 1)  # The endpoint can also have false depth occupancy.
+        self.update(obstacle)
+        self.assertTrue(planner.is_depth_probe((50, 40)))
+        self.assertFalse(planner.check_navigability((50, 40)))
+        self.assertTrue(planner.check_waypoint_executability((50, 40)))
+        self.assertEqual(planner.plan({}, (50, 40), False), Actions.MOVE_FORWARD)
+        self.update(self.unknown, collision=False)
+        edge = self.nodes((50, 50), (50, 40))
+        self.assertEqual(planner.mapper.get_maps_and_agent_pose()[2:4], (50, 40))
+        self.assertTrue(planner._graph.has_edge(*edge))
+        self.assertEqual(planner.mapper._geometric_map[45, 50, 0], 1)
+        # Even another occupied observation cannot erase executed connectivity.
+        planner.mapper._geometric_map[40, 50, 0] = 1
+        planner._update_graph([(50, 40)], [((50, 50), (50, 40))])
+        self.assertTrue(planner._graph.has_edge(*edge))
+        planner.reset()
+        self.assertFalse(planner._verified_edges)
+        self.assertFalse(planner._verified_nodes)
+
+    def test_failed_depth_probe_cannot_be_retried(self):
+        planner = self.planner
+        obstacle = self.unknown.copy()
+        obstacle[26, 15] = (1, 1)
+        obstacle[21, 15] = (1, 1)
+        self.update(obstacle)
+        self.assertEqual(planner.plan({}, (50, 40), False), Actions.MOVE_FORWARD)
+        self.update(self.unknown, collision=True)
+        self.assertFalse(planner.is_depth_probe((50, 40)))
+        self.assertFalse(planner.check_waypoint_executability((50, 40)))
+        obs = {'action_map': None}
+        planner.add_maps_to_observation(obs)
+        self.assertEqual(obs['action_map'][3, 4, 0], 0)
+
+    def test_expert_probes_when_depth_blocks_all_normal_candidates(self):
+        from experiment.avwan.environment.BFSExpert import BFSExpert
+        planner = self.planner
+        current = self.nodes((50, 50))[0]
+        paths = []
+        for neighbor in planner._graph[current]:
+            x, y = planner._graph.nodes[neighbor]['map_index']
+            planner.mapper._geometric_map[(50+y)//2, (50+x)//2] = (1, 1)
+            paths.append(((50, 50), (x, y)))
+        planner._update_graph([], paths)
+        obs = {'action_map': None}
+        planner.add_maps_to_observation(obs)
+        expert = BFSExpert(get_avwan_config())
+
+        def score(candidates, *args):
+            for c in candidates:
+                c.distance = 0 if c.goal == (50, 40) else 2
+                c.progress = 1 - c.distance
+                c.expected_reward = c.progress - 0.01 * c.steps
+            return candidates
+
+        with patch.object(expert, '_score_waypoint_candidates', side_effect=score):
+            action = expert.select_action(planner=planner, sim=None, observation=obs,
+                                          target_positions=[], current_distance=1, goal_reached=False)
+        self.assertEqual(action, 31)
+        self.assertEqual(expert.last_decision['mode'], 'depth_probe')
+        self.assertEqual(expert.last_decision['estimated_steps'], 1)
+        self.assertTrue(obs['action_map'].reshape(-1)[action])
 
     def test_projection_and_masks_near_boundaries(self):
         mapper = self.planner.mapper

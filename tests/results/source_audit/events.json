@@ -1,0 +1,1847 @@
+[
+  {
+    "step": 0,
+    "position": [
+      7.051924228668213,
+      -0.07478900253772736,
+      4.53773307800293
+    ],
+    "map_pose": [
+      600,
+      600,
+      270
+    ],
+    "distance": 14.0,
+    "action": null,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      }
+    ]
+  },
+  {
+    "step": 19,
+    "position": [
+      2.051923990249634,
+      0.03750700131058693,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      650,
+      270
+    ],
+    "distance": 3.0,
+    "action": 2,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 34,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      270
+    ],
+    "distance": 1.0,
+    "action": 1,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 35,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      180
+    ],
+    "distance": 1.0,
+    "action": 2,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 36,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      90
+    ],
+    "distance": 1.0,
+    "action": 2,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 51,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      270
+    ],
+    "distance": 1.0,
+    "action": 1,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 52,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      0
+    ],
+    "distance": 1.0,
+    "action": 3,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 53,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      90
+    ],
+    "distance": 1.0,
+    "action": 3,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 71,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      270
+    ],
+    "distance": 1.0,
+    "action": 1,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 72,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      0
+    ],
+    "distance": 1.0,
+    "action": 3,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 73,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      90
+    ],
+    "distance": 1.0,
+    "action": 3,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 91,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      270
+    ],
+    "distance": 1.0,
+    "action": 1,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 92,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      0
+    ],
+    "distance": 1.0,
+    "action": 3,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 93,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      90
+    ],
+    "distance": 1.0,
+    "action": 3,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 109,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      270
+    ],
+    "distance": 1.0,
+    "action": 1,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 110,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      180
+    ],
+    "distance": 1.0,
+    "action": 2,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 111,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      90
+    ],
+    "distance": 1.0,
+    "action": 2,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 159,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      270
+    ],
+    "distance": 1.0,
+    "action": 1,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 160,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      180
+    ],
+    "distance": 1.0,
+    "action": 2,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 161,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      90
+    ],
+    "distance": 1.0,
+    "action": 2,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 179,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      270
+    ],
+    "distance": 1.0,
+    "action": 1,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 180,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      180
+    ],
+    "distance": 1.0,
+    "action": 2,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 181,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      90
+    ],
+    "distance": 1.0,
+    "action": 2,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 197,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      270
+    ],
+    "distance": 1.0,
+    "action": 1,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 198,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      0
+    ],
+    "distance": 1.0,
+    "action": 3,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 199,
+    "position": [
+      4.051924228668213,
+      -0.09140899777412415,
+      10.53773307800293
+    ],
+    "map_pose": [
+      660,
+      630,
+      90
+    ],
+    "distance": 1.0,
+    "action": 3,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": false,
+        "collision_blocked": false,
+        "occupied": [
+          [
+            663,
+            630
+          ],
+          [
+            664,
+            630
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "step": 201,
+    "position": [
+      7.051924228668213,
+      -0.07478900253772736,
+      4.53773307800293
+    ],
+    "map_pose": [
+      600,
+      600,
+      270
+    ],
+    "distance": 14.0,
+    "action": null,
+    "collision": false,
+    "source_edges": [
+      {
+        "neighbor": 112,
+        "a": [
+          670,
+          640
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 121,
+        "a": [
+          680,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      },
+      {
+        "neighbor": 123,
+        "a": [
+          660,
+          630
+        ],
+        "b": [
+          670,
+          630
+        ],
+        "present": true,
+        "collision_blocked": false,
+        "occupied": []
+      }
+    ]
+  }
+]

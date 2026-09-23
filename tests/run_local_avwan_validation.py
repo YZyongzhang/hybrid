@@ -80,7 +80,7 @@ try:
                     success=info['success'],done=done)
         steps.append(record);print(json.dumps(record),flush=True)
     summary=dict(scene=scene,episode_id=eid,success=info.get('success',False),
-                 seed=seed,collision_edge_blocking=False,**collision_stats,
+                 seed=seed,collision_edge_blocking=True,**collision_stats,
                  spl=info.get('spl'),final_distance=info['distance_to_goal'],done=done,
                  truncated=info.get('truncated',False),blocked=blocked,
                  restored_edges_between_waypoints=restored_edges,

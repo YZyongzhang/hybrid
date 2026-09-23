@@ -1,0 +1,4429 @@
+{
+  "summary": {
+    "scene": "VVfe2KiqLaN",
+    "episode_id": "548",
+    "seed": 20260924,
+    "prediction_interval": 10,
+    "success": false,
+    "final_distance": 2.0,
+    "spl": 0.0,
+    "primitive_steps": 200,
+    "blocked": null,
+    "forward_attempts": 120,
+    "collisions": 8,
+    "max_collisions_per_edge": 1,
+    "collision_edges_retained": 0,
+    "source_map_state": {
+      "cell": [
+        670,
+        630
+      ],
+      "occupancy": 0.0,
+      "explored": 1.0,
+      "node_present": true,
+      "reachable": false
+    }
+  },
+  "waypoints": [
+    {
+      "action": 79,
+      "reward": 4.900000000000001,
+      "distance": 9.0,
+      "reached": false,
+      "blocked": false,
+      "low_level_actions": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        2,
+        1,
+        3,
+        1,
+        2
+      ]
+    },
+    {
+      "action": 5,
+      "reward": 4.930000000000001,
+      "distance": 4.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        1,
+        2,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 20,
+      "reward": -2.0999999999999996,
+      "distance": 6.0,
+      "reached": false,
+      "blocked": false,
+      "low_level_actions": [
+        1,
+        2,
+        2,
+        1,
+        1,
+        3,
+        1,
+        2,
+        1,
+        3
+      ]
+    },
+    {
+      "action": 25,
+      "reward": 4.930000000000001,
+      "distance": 1.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 74,
+      "reward": -4.099999999999999,
+      "distance": 5.0,
+      "reached": false,
+      "blocked": false,
+      "low_level_actions": [
+        2,
+        2,
+        1,
+        1,
+        3,
+        1,
+        1,
+        2,
+        1,
+        3
+      ]
+    },
+    {
+      "action": 60,
+      "reward": 3.9299999999999997,
+      "distance": 1.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        3,
+        1,
+        1,
+        2,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 64,
+      "reward": -6.099999999999999,
+      "distance": 7.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        3,
+        1,
+        1,
+        3,
+        1,
+        1,
+        1,
+        2,
+        1
+      ]
+    },
+    {
+      "action": 64,
+      "reward": 5.9,
+      "distance": 1.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        3,
+        1,
+        3,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 46,
+      "reward": -6.099999999999999,
+      "distance": 7.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        3,
+        1,
+        1,
+        3,
+        1,
+        1,
+        1,
+        3,
+        1
+      ]
+    },
+    {
+      "action": 34,
+      "reward": 5.9,
+      "distance": 1.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        3,
+        1,
+        2,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 54,
+      "reward": -6.089999999999999,
+      "distance": 7.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        3,
+        1,
+        1,
+        3,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 78,
+      "reward": 5.910000000000001,
+      "distance": 1.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        3,
+        1,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 64,
+      "reward": -6.099999999999999,
+      "distance": 7.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        2,
+        2,
+        1,
+        1,
+        3,
+        1,
+        1,
+        1,
+        2,
+        1
+      ]
+    },
+    {
+      "action": 37,
+      "reward": -4.099999999999999,
+      "distance": 11.0,
+      "reached": false,
+      "blocked": false,
+      "low_level_actions": [
+        1,
+        2,
+        1,
+        1,
+        1,
+        3,
+        1,
+        2,
+        1,
+        3
+      ]
+    },
+    {
+      "action": 57,
+      "reward": -2.0999999999999988,
+      "distance": 13.0,
+      "reached": false,
+      "blocked": false,
+      "low_level_actions": [
+        1,
+        2,
+        1,
+        3,
+        1,
+        2,
+        1,
+        3,
+        1,
+        3
+      ]
+    },
+    {
+      "action": 26,
+      "reward": 4.900000000000001,
+      "distance": 8.0,
+      "reached": false,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        1,
+        1,
+        2,
+        1,
+        1,
+        3,
+        1,
+        2,
+        1
+      ]
+    },
+    {
+      "action": 71,
+      "reward": 6.900000000000001,
+      "distance": 1.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        1,
+        1,
+        3,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 46,
+      "reward": -6.099999999999999,
+      "distance": 7.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        2,
+        2,
+        1,
+        1,
+        3,
+        1,
+        1,
+        1,
+        3,
+        1
+      ]
+    },
+    {
+      "action": 34,
+      "reward": 5.9,
+      "distance": 1.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        3,
+        1,
+        2,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 54,
+      "reward": -6.089999999999999,
+      "distance": 7.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        2,
+        2,
+        1,
+        1,
+        3,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 78,
+      "reward": 5.910000000000001,
+      "distance": 1.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        2,
+        2,
+        1,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 49,
+      "reward": -1.03,
+      "distance": 2.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        3,
+        3,
+        1
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "waypoint": 1,
+      "action": 2,
+      "edge": [
+        708600,
+        720600
+      ],
+      "position": [
+        7.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        7.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 2,
+      "edge": [
+        720590,
+        720600
+      ],
+      "position": [
+        7.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        7.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        720600,
+        732600
+      ],
+      "position": [
+        7.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        6.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        732600,
+        744600
+      ],
+      "position": [
+        6.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        5.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        744600,
+        756600
+      ],
+      "position": [
+        5.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 2,
+      "edge": [
+        756600,
+        768600
+      ],
+      "position": [
+        4.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        756600,
+        756610
+      ],
+      "position": [
+        4.051924228668213,
+        -0.07478900253772736,
+        4.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 3,
+      "edge": [
+        756610,
+        756620
+      ],
+      "position": [
+        4.051924228668213,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        756610,
+        768610
+      ],
+      "position": [
+        4.051924228668213,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 2,
+      "edge": [
+        768610,
+        780610
+      ],
+      "position": [
+        3.051923990249634,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 2,
+      "action": 3,
+      "edge": [
+        768610,
+        768620
+      ],
+      "position": [
+        3.051923990249634,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 2,
+      "action": 1,
+      "edge": [
+        768610,
+        780610
+      ],
+      "position": [
+        3.051923990249634,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 2,
+      "action": 2,
+      "edge": [
+        780610,
+        792610
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 2,
+      "action": 1,
+      "edge": [
+        780610,
+        780620
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        5.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 2,
+      "action": 1,
+      "edge": [
+        780620,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 2,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 2,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 3,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 3,
+      "action": 2,
+      "edge": [
+        780660,
+        780670
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 3,
+      "action": 2,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 3,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 3,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 3,
+      "action": 3,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 3,
+      "action": 1,
+      "edge": [
+        768640,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": true,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 3,
+      "action": 2,
+      "edge": [
+        768640,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 3,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 3,
+      "action": 3,
+      "edge": [
+        780620,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 4,
+      "action": 3,
+      "edge": [
+        768630,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 4,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 4,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 4,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 4,
+      "action": 2,
+      "edge": [
+        780660,
+        780670
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 4,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 4,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 5,
+      "action": 2,
+      "edge": [
+        744660,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 5,
+      "action": 2,
+      "edge": [
+        756650,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 5,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 5,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 5,
+      "action": 3,
+      "edge": [
+        780660,
+        792660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 5,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 5,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 5,
+      "action": 2,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 5,
+      "action": 1,
+      "edge": [
+        780640,
+        792640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": true,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 5,
+      "action": 3,
+      "edge": [
+        780640,
+        792640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 6,
+      "action": 3,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 6,
+      "action": 3,
+      "edge": [
+        768640,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 6,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 6,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 6,
+      "action": 2,
+      "edge": [
+        780660,
+        780670
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 6,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 6,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 7,
+      "action": 3,
+      "edge": [
+        744660,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 7,
+      "action": 3,
+      "edge": [
+        756660,
+        756670
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 7,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 7,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 7,
+      "action": 3,
+      "edge": [
+        780660,
+        792660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 7,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 7,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 7,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 7,
+      "action": 2,
+      "edge": [
+        780620,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 7,
+      "action": 1,
+      "edge": [
+        780630,
+        792630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        1.0519239902496338,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 8,
+      "action": 3,
+      "edge": [
+        792630,
+        804630
+      ],
+      "position": [
+        1.0519239902496338,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        1.0519239902496338,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 8,
+      "action": 3,
+      "edge": [
+        792620,
+        792630
+      ],
+      "position": [
+        1.0519239902496338,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        1.0519239902496338,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 8,
+      "action": 1,
+      "edge": [
+        780630,
+        792630
+      ],
+      "position": [
+        1.0519239902496338,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 8,
+      "action": 3,
+      "edge": [
+        768630,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 8,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 8,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 8,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 8,
+      "action": 2,
+      "edge": [
+        780660,
+        780670
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 8,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 8,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 9,
+      "action": 3,
+      "edge": [
+        744660,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 9,
+      "action": 3,
+      "edge": [
+        756660,
+        756670
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 9,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 9,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 9,
+      "action": 3,
+      "edge": [
+        780660,
+        792660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 9,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 9,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 9,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 9,
+      "action": 3,
+      "edge": [
+        780620,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 9,
+      "action": 1,
+      "edge": [
+        768630,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 10,
+      "action": 3,
+      "edge": [
+        756630,
+        768630
+      ],
+      "position": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 10,
+      "action": 3,
+      "edge": [
+        768630,
+        768640
+      ],
+      "position": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 10,
+      "action": 1,
+      "edge": [
+        768630,
+        780630
+      ],
+      "position": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 10,
+      "action": 2,
+      "edge": [
+        780630,
+        792630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 10,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 10,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 10,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 10,
+      "action": 2,
+      "edge": [
+        780660,
+        780670
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 10,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 10,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 11,
+      "action": 3,
+      "edge": [
+        744660,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 11,
+      "action": 3,
+      "edge": [
+        756660,
+        756670
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 11,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 11,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 11,
+      "action": 3,
+      "edge": [
+        780660,
+        792660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 11,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 11,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 11,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 11,
+      "action": 1,
+      "edge": [
+        780620,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 12,
+      "action": 3,
+      "edge": [
+        780610,
+        780620
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 12,
+      "action": 3,
+      "edge": [
+        768620,
+        780620
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 12,
+      "action": 1,
+      "edge": [
+        780620,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 12,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 12,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 12,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 12,
+      "action": 2,
+      "edge": [
+        780660,
+        780670
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 12,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 12,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 13,
+      "action": 2,
+      "edge": [
+        744660,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 13,
+      "action": 2,
+      "edge": [
+        756650,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 13,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 13,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 13,
+      "action": 3,
+      "edge": [
+        780660,
+        792660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 13,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 13,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 13,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 13,
+      "action": 2,
+      "edge": [
+        780620,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 13,
+      "action": 1,
+      "edge": [
+        780630,
+        792630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        1.0519239902496338,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 14,
+      "action": 1,
+      "edge": [
+        792630,
+        804630
+      ],
+      "position": [
+        1.0519239902496338,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 14,
+      "action": 2,
+      "edge": [
+        804630,
+        816630
+      ],
+      "position": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 14,
+      "action": 1,
+      "edge": [
+        804630,
+        804640
+      ],
+      "position": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 14,
+      "action": 1,
+      "edge": [
+        804640,
+        804650
+      ],
+      "position": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 14,
+      "action": 1,
+      "edge": [
+        804650,
+        804660
+      ],
+      "position": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": true,
+      "position_after": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 14,
+      "action": 3,
+      "edge": [
+        804650,
+        804660
+      ],
+      "position": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 14,
+      "action": 1,
+      "edge": [
+        804650,
+        816650
+      ],
+      "position": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 14,
+      "action": 2,
+      "edge": [
+        816650,
+        828650
+      ],
+      "position": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 14,
+      "action": 1,
+      "edge": [
+        816650,
+        816660
+      ],
+      "position": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": true,
+      "position_after": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 14,
+      "action": 3,
+      "edge": [
+        816650,
+        816660
+      ],
+      "position": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 15,
+      "action": 1,
+      "edge": [
+        816650,
+        828650
+      ],
+      "position": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -1.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 15,
+      "action": 2,
+      "edge": [
+        828650,
+        840650
+      ],
+      "position": [
+        -1.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -1.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 15,
+      "action": 1,
+      "edge": [
+        828650,
+        828660
+      ],
+      "position": [
+        -1.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": true,
+      "position_after": [
+        -1.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 15,
+      "action": 3,
+      "edge": [
+        828650,
+        828660
+      ],
+      "position": [
+        -1.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -1.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 15,
+      "action": 1,
+      "edge": [
+        828650,
+        840650
+      ],
+      "position": [
+        -1.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 15,
+      "action": 2,
+      "edge": [
+        840650,
+        852650
+      ],
+      "position": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 15,
+      "action": 1,
+      "edge": [
+        840650,
+        840660
+      ],
+      "position": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": true,
+      "position_after": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 15,
+      "action": 3,
+      "edge": [
+        840650,
+        840660
+      ],
+      "position": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 15,
+      "action": 1,
+      "edge": [
+        840650,
+        852650
+      ],
+      "position": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": true,
+      "position_after": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 15,
+      "action": 3,
+      "edge": [
+        840650,
+        852650
+      ],
+      "position": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 16,
+      "action": 3,
+      "edge": [
+        840640,
+        840650
+      ],
+      "position": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 16,
+      "action": 1,
+      "edge": [
+        828650,
+        840650
+      ],
+      "position": [
+        -2.948076009750366,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -1.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 16,
+      "action": 1,
+      "edge": [
+        816650,
+        828650
+      ],
+      "position": [
+        -1.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 16,
+      "action": 2,
+      "edge": [
+        804650,
+        816650
+      ],
+      "position": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 16,
+      "action": 1,
+      "edge": [
+        816640,
+        816650
+      ],
+      "position": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 16,
+      "action": 1,
+      "edge": [
+        816630,
+        816640
+      ],
+      "position": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "collision": true,
+      "position_after": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 16,
+      "action": 3,
+      "edge": [
+        816630,
+        816640
+      ],
+      "position": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 16,
+      "action": 1,
+      "edge": [
+        804640,
+        816640
+      ],
+      "position": [
+        -0.9480760097503662,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 16,
+      "action": 2,
+      "edge": [
+        792640,
+        804640
+      ],
+      "position": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 16,
+      "action": 1,
+      "edge": [
+        804630,
+        804640
+      ],
+      "position": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 17,
+      "action": 3,
+      "edge": [
+        804620,
+        804630
+      ],
+      "position": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 17,
+      "action": 1,
+      "edge": [
+        792630,
+        804630
+      ],
+      "position": [
+        0.051924001425504684,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        1.0519239902496338,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 17,
+      "action": 1,
+      "edge": [
+        780630,
+        792630
+      ],
+      "position": [
+        1.0519239902496338,
+        -0.041485000401735306,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 17,
+      "action": 3,
+      "edge": [
+        768630,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 17,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 17,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 17,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 17,
+      "action": 2,
+      "edge": [
+        780660,
+        780670
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 17,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 17,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 18,
+      "action": 2,
+      "edge": [
+        744660,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 18,
+      "action": 2,
+      "edge": [
+        756650,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 18,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 18,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 18,
+      "action": 3,
+      "edge": [
+        780660,
+        792660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 18,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 18,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 18,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 18,
+      "action": 3,
+      "edge": [
+        780620,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 18,
+      "action": 1,
+      "edge": [
+        768630,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 19,
+      "action": 3,
+      "edge": [
+        756630,
+        768630
+      ],
+      "position": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 19,
+      "action": 3,
+      "edge": [
+        768630,
+        768640
+      ],
+      "position": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 19,
+      "action": 1,
+      "edge": [
+        768630,
+        780630
+      ],
+      "position": [
+        3.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 19,
+      "action": 2,
+      "edge": [
+        780630,
+        792630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 19,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 19,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 19,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 19,
+      "action": 2,
+      "edge": [
+        780660,
+        780670
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 19,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 19,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 20,
+      "action": 2,
+      "edge": [
+        744660,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 20,
+      "action": 2,
+      "edge": [
+        756650,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 20,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 20,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 20,
+      "action": 3,
+      "edge": [
+        780660,
+        792660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 20,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 20,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 20,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 20,
+      "action": 1,
+      "edge": [
+        780620,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 21,
+      "action": 2,
+      "edge": [
+        780610,
+        780620
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 21,
+      "action": 2,
+      "edge": [
+        780620,
+        792620
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 21,
+      "action": 1,
+      "edge": [
+        780620,
+        780630
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        6.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 21,
+      "action": 1,
+      "edge": [
+        780630,
+        780640
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        7.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 21,
+      "action": 1,
+      "edge": [
+        780640,
+        780650
+      ],
+      "position": [
+        2.051923990249634,
+        -0.07478900253772736,
+        8.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 21,
+      "action": 1,
+      "edge": [
+        780650,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        9.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 21,
+      "action": 2,
+      "edge": [
+        780660,
+        780670
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 21,
+      "action": 1,
+      "edge": [
+        768660,
+        780660
+      ],
+      "position": [
+        2.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 21,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 22,
+      "action": 3,
+      "edge": [
+        744660,
+        756660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 22,
+      "action": 3,
+      "edge": [
+        756660,
+        756670
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 22,
+      "action": 1,
+      "edge": [
+        756660,
+        768660
+      ],
+      "position": [
+        4.051924228668213,
+        -0.09140899777412415,
+        10.53773307800293
+      ],
+      "collision": false,
+      "position_after": [
+        3.051923990249634,
+        0.03750700131058693,
+        10.53773307800293
+      ],
+      "edge_present_after": true
+    }
+  ]
+}

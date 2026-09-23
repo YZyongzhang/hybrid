@@ -1,0 +1,301 @@
+{
+  "summary": {
+    "scene": "r1Q1Z4BcV1o",
+    "episode_id": "77250",
+    "seed": 0,
+    "prediction_interval": 20,
+    "success": true,
+    "final_distance": 0.0,
+    "spl": 0.9998772295062075,
+    "primitive_steps": 12,
+    "blocked": null,
+    "forward_attempts": 7,
+    "collisions": 0,
+    "max_collisions_per_edge": 0,
+    "collision_edges_retained": 0,
+    "source_map_state": {
+      "cell": [
+        560,
+        570
+      ],
+      "occupancy": 0.0,
+      "explored": 1.0,
+      "node_present": true,
+      "reachable": true
+    }
+  },
+  "waypoints": [
+    {
+      "action": 9,
+      "reward": 6.8900000000000015,
+      "distance": 0.0,
+      "reached": true,
+      "blocked": false,
+      "low_level_actions": [
+        2,
+        1,
+        1,
+        3,
+        1,
+        2,
+        1,
+        1,
+        3,
+        1,
+        1
+      ]
+    },
+    {
+      "action": 40,
+      "reward": 9.99,
+      "distance": 0.0,
+      "reached": false,
+      "blocked": false,
+      "low_level_actions": [
+        0
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "waypoint": 1,
+      "action": 2,
+      "edge": [
+        708600,
+        720600
+      ],
+      "position": [
+        -0.6213610172271729,
+        0.03954600170254707,
+        -10.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -0.6213610172271729,
+        0.03954600170254707,
+        -10.372472763061523
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        720590,
+        720600
+      ],
+      "position": [
+        -0.6213610172271729,
+        0.03954600170254707,
+        -10.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -1.6213610172271729,
+        -0.0019310000352561474,
+        -10.372472763061523
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        720580,
+        720590
+      ],
+      "position": [
+        -1.6213610172271729,
+        -0.0019310000352561474,
+        -10.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -2.621361017227173,
+        -0.0019310000352561474,
+        -10.372472763061523
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 3,
+      "edge": [
+        720570,
+        720580
+      ],
+      "position": [
+        -2.621361017227173,
+        -0.0019310000352561474,
+        -10.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -2.621361017227173,
+        -0.0019310000352561474,
+        -10.372472763061523
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        708580,
+        720580
+      ],
+      "position": [
+        -2.621361017227173,
+        -0.0019310000352561474,
+        -10.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -2.621361017227173,
+        -0.0019310000352561474,
+        -11.372472763061523
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 2,
+      "edge": [
+        696580,
+        708580
+      ],
+      "position": [
+        -2.621361017227173,
+        -0.0019310000352561474,
+        -11.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -2.621361017227173,
+        -0.0019310000352561474,
+        -11.372472763061523
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        708570,
+        708580
+      ],
+      "position": [
+        -2.621361017227173,
+        -0.0019310000352561474,
+        -11.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -3.621361017227173,
+        -0.0019310000352561474,
+        -11.372472763061523
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        708560,
+        708570
+      ],
+      "position": [
+        -3.621361017227173,
+        -0.0019310000352561474,
+        -11.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -4.621360778808594,
+        -0.0019310000352561474,
+        -11.372472763061523
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 3,
+      "edge": [
+        708550,
+        708560
+      ],
+      "position": [
+        -4.621360778808594,
+        -0.0019310000352561474,
+        -11.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -4.621360778808594,
+        -0.0019310000352561474,
+        -11.372472763061523
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        696560,
+        708560
+      ],
+      "position": [
+        -4.621360778808594,
+        -0.0019310000352561474,
+        -11.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -4.621360778808594,
+        -0.0019310000352561474,
+        -12.372472763061523
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        684560,
+        696560
+      ],
+      "position": [
+        -4.621360778808594,
+        -0.0019310000352561474,
+        -12.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -4.621360778808594,
+        -0.0019310000352561474,
+        -13.372472763061523
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 2,
+      "action": 0,
+      "edge": [
+        672560,
+        684560
+      ],
+      "position": [
+        -4.621360778808594,
+        -0.0019310000352561474,
+        -13.372472763061523
+      ],
+      "collision": false,
+      "position_after": [
+        -4.621360778808594,
+        -0.0019310000352561474,
+        -13.372472763061523
+      ],
+      "edge_present_after": true
+    }
+  ]
+}

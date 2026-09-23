@@ -1,0 +1,291 @@
+{
+  "summary": {
+    "scene": "GdvgFV5R1Z5",
+    "episode_id": "11",
+    "seed": 20260926,
+    "prediction_interval": 10,
+    "success": true,
+    "final_distance": 0.0,
+    "spl": 0.9999908805725141,
+    "primitive_steps": 10,
+    "blocked": null,
+    "forward_attempts": 4,
+    "depth_probe_attempts": 0,
+    "collisions": 0,
+    "max_collisions_per_edge": 0,
+    "collision_edges_retained": 0,
+    "source_map_state": {
+      "cell": [
+        620,
+        620
+      ],
+      "occupancy": 0.0,
+      "explored": 1.0,
+      "node_present": true,
+      "reachable": true
+    }
+  },
+  "waypoints": [
+    {
+      "action": 60,
+      "reward": 3.91,
+      "distance": 0.0,
+      "reached": true,
+      "blocked": false,
+      "expert_decision": {
+        "action": 60,
+        "mode": "progress",
+        "waypoint_goal": [
+          620,
+          620
+        ],
+        "estimated_steps": 6,
+        "expected_reward": 3.94,
+        "distance_progress": 4.0,
+        "target_distance": 0.0,
+        "unexplored_fraction": 1.0,
+        "history_penalty": 0.0,
+        "partial_execution": false,
+        "depth_probe": false,
+        "candidate_count": 78
+      },
+      "low_level_actions": [
+        3,
+        3,
+        1,
+        2,
+        1,
+        3,
+        1,
+        2,
+        1
+      ]
+    },
+    {
+      "action": 40,
+      "reward": 9.99,
+      "distance": 0.0,
+      "reached": false,
+      "blocked": false,
+      "expert_decision": {
+        "action": 40,
+        "mode": "stop"
+      },
+      "low_level_actions": [
+        0
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "waypoint": 1,
+      "action": 3,
+      "edge": [
+        708600,
+        720600
+      ],
+      "depth_probe": false,
+      "position": [
+        -2.6137750148773193,
+        -0.01030800025910139,
+        -0.4156549870967865
+      ],
+      "collision": false,
+      "position_after": [
+        -2.6137750148773193,
+        -0.01030800025910139,
+        -0.4156549870967865
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 1,
+      "action": 3,
+      "edge": [
+        720600,
+        720610
+      ],
+      "depth_probe": false,
+      "position": [
+        -2.6137750148773193,
+        -0.01030800025910139,
+        -0.4156549870967865
+      ],
+      "collision": false,
+      "position_after": [
+        -2.6137750148773193,
+        -0.01030800025910139,
+        -0.4156549870967865
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        720600,
+        732600
+      ],
+      "depth_probe": false,
+      "position": [
+        -2.6137750148773193,
+        -0.01030800025910139,
+        -0.4156549870967865
+      ],
+      "collision": false,
+      "position_after": [
+        -2.6137750148773193,
+        -0.001728000002913177,
+        -1.4156550168991089
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 2,
+      "edge": [
+        732600,
+        744600
+      ],
+      "depth_probe": false,
+      "position": [
+        -2.6137750148773193,
+        -0.001728000002913177,
+        -1.4156550168991089
+      ],
+      "collision": false,
+      "position_after": [
+        -2.6137750148773193,
+        -0.001728000002913177,
+        -1.4156550168991089
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        732600,
+        732610
+      ],
+      "depth_probe": false,
+      "position": [
+        -2.6137750148773193,
+        -0.001728000002913177,
+        -1.4156550168991089
+      ],
+      "collision": false,
+      "position_after": [
+        -3.6137750148773193,
+        -0.0015379999531432986,
+        -1.4156550168991089
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 3,
+      "edge": [
+        732610,
+        732620
+      ],
+      "depth_probe": false,
+      "position": [
+        -3.6137750148773193,
+        -0.0015379999531432986,
+        -1.4156550168991089
+      ],
+      "collision": false,
+      "position_after": [
+        -3.6137750148773193,
+        -0.0015379999531432986,
+        -1.4156550168991089
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        732610,
+        744610
+      ],
+      "depth_probe": false,
+      "position": [
+        -3.6137750148773193,
+        -0.0015379999531432986,
+        -1.4156550168991089
+      ],
+      "collision": false,
+      "position_after": [
+        -3.6137750148773193,
+        -0.0015379999531432986,
+        -2.4156548976898193
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 1,
+      "action": 2,
+      "edge": [
+        744610,
+        756610
+      ],
+      "depth_probe": false,
+      "position": [
+        -3.6137750148773193,
+        -0.0015379999531432986,
+        -2.4156548976898193
+      ],
+      "collision": false,
+      "position_after": [
+        -3.6137750148773193,
+        -0.0015379999531432986,
+        -2.4156548976898193
+      ],
+      "edge_present_after": false
+    },
+    {
+      "waypoint": 1,
+      "action": 1,
+      "edge": [
+        744610,
+        744620
+      ],
+      "depth_probe": false,
+      "position": [
+        -3.6137750148773193,
+        -0.0015379999531432986,
+        -2.4156548976898193
+      ],
+      "collision": false,
+      "position_after": [
+        -4.61377477645874,
+        -0.0015379999531432986,
+        -2.4156548976898193
+      ],
+      "edge_present_after": true
+    },
+    {
+      "waypoint": 2,
+      "action": 0,
+      "edge": [
+        744620,
+        744630
+      ],
+      "depth_probe": false,
+      "position": [
+        -4.61377477645874,
+        -0.0015379999531432986,
+        -2.4156548976898193
+      ],
+      "collision": false,
+      "position_after": [
+        -4.61377477645874,
+        -0.0015379999531432986,
+        -2.4156548976898193
+      ],
+      "edge_present_after": false
+    }
+  ]
+}
