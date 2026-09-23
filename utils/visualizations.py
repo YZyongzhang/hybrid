@@ -116,8 +116,71 @@ def draw_map(env, path_points , agent_pos , sound_points):
             top_down_map, path_points[-1], yaw, agent_radius_px=8
         )
         return top_down_map
-def plot_top_down_map_waypoint():
-    pass
+def plot_top_down_map_waypoint(info, dataset='mp3d'):
+    """Render an AVWAN get_info()/step() snapshot as an RGB image.
+
+    Coordinates in top_down_map are (row, column) in its unrotated map.
+    Keep Habitat's agent sprite, mark waypoints with small red circles, and
+    mark sound sources with small filled red squares.
+    Repeated locations show only the latest action index (including STOP).
+    This only needs saved info, so it can also render after the env is closed.
+    """
+    map_info = info["top_down_map"]
+    map_values = map_info["map"].copy()
+    # Remove source/target markers already baked into Habitat's map as well.
+    map_values[np.isin(map_values, [maps.MAP_SOURCE_POINT_INDICATOR,
+                                   maps.MAP_TARGET_POINT_INDICATOR])] = maps.MAP_VALID_POINT
+    top_down_map = maps.colorize_topdown_map(
+        map_values, map_info.get("fog_of_war_mask")
+    ).copy()
+    radius = max(1, top_down_map.shape[0] // (16 if dataset == 'replica' else 50))
+    top_down_map = maps.draw_agent(
+        image=top_down_map,
+        agent_center_coord=map_info["agent_map_coord"],
+        agent_rotation=map_info["agent_angle"],
+        agent_radius_px=radius,
+    )
+    # Rotate the map and the annotations together, but keep text upright.
+    original_width = top_down_map.shape[1]
+    rotate = top_down_map.shape[0] > original_width
+    if rotate:
+        top_down_map = np.rot90(top_down_map)
+    top_down_map = np.ascontiguousarray(top_down_map)
+    height, width = top_down_map.shape[:2]
+
+    def image_point(coord):
+        row, col = (int(v) for v in coord)
+        if rotate:
+            row, col = original_width - 1 - col, row
+        return col, row
+
+    def label(point, text, color):
+        (text_width, text_height), _ = cv2.getTextSize(
+            text, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
+        x = max(0, min(point[0] + 7, width - text_width - 1))
+        y = point[1] - 7
+        y = max(text_height + 1, min(y, height - 3))
+        cv2.putText(top_down_map, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.45, (255, 255, 255), 3, cv2.LINE_AA)
+        cv2.putText(top_down_map, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.45, color, 1, cv2.LINE_AA)
+
+    # Overwrite earlier indices when several actions select the same location.
+    waypoint_labels = {}
+    for index, coord in enumerate(map_info["waypoint_map_coords"], start=1):
+        point = image_point(coord)
+        waypoint_labels[point] = str(index)
+    red = (255, 0, 0)
+    for point in waypoint_labels:
+        cv2.circle(top_down_map, point, 3, red, -1, cv2.LINE_AA)
+    # Draw sources after waypoints so the square remains visible when a
+    # waypoint is exactly at the source; retain its latest index alongside it.
+    for coord in map_info.get('sound_source_map_coords', []):
+        x, y = image_point(coord)
+        cv2.rectangle(top_down_map, (x - 3, y - 3), (x + 3, y + 3), red, -1)
+    for point, index in waypoint_labels.items():
+        label(point, index, red)
+    return top_down_map
 # def display_path_map(topdown_map, key_points=None, path=None, image_filename=None):
 #     output_dir = './output_images'
 #     os.makedirs(output_dir, exist_ok=True)
