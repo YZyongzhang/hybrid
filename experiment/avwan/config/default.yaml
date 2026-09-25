@@ -1,0 +1,6 @@
+# Optional overrides; all defaults are defined in default.py.
+SEED: 20260923
+TASK_CONFIG:
+  COLLECT:
+    OUTPUT_DIR: data/avwan/expert_100
+    NUM_EPISODES: 100

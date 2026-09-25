@@ -89,6 +89,13 @@ TASK:
 
 
 
+COLLECT:
+  TYPE: greedy
+  RESUME: true  # Skip scenes that already have collected data in TO_PATH.
+  TO_PATH: "/data/Getuanhui/avwan_telephone_greedy_train"
+
+
+
 DATASET:
   TYPE: "AudioNav"
   SPLIT: "train_telephone"

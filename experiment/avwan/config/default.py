@@ -55,6 +55,8 @@ _C.CONTINUOUS = False
 _C.FOLLOW_SHORTEST_PATH = False
 # Maximum primitive steps per AV-WaN waypoint action.
 _C.PREDICTION_INTERVAL = 10
+_C.OFFLINE_RL = CN()
+_C.OFFLINE_RL.GAMMA = 0.99
 # -----------------------------------------------------------------------------
 # EVAL CONFIG
 # -----------------------------------------------------------------------------
@@ -97,6 +99,19 @@ _C.RL.PPO.reward_window_size = 50
 # -----------------------------------------------------------------------------
 _TC = habitat.get_config()
 _TC.defrost()
+_TC.COLLECT = CN()
+_TC.COLLECT.OPEN = True
+_TC.COLLECT.TYPE = "greedy"
+_TC.COLLECT.TO_PATH = ""
+_TC.COLLECT.OUTPUT_DIR = "data/avwan/expert"
+_TC.COLLECT.NUM_EPISODES = -1  # Legacy YAML compatibility; collection uses env.episodes.
+_TC.COLLECT.EPISODE_ID = None
+_TC.COLLECT.SELECTION_PATH = ""
+_TC.COLLECT.CONTENT_DIR = ""
+_TC.COLLECT.SUCCESS_ONLY = False
+_TC.COLLECT.VISUALIZE = True
+_TC.COLLECT.RESUME = False
+_TC.COLLECT.TIMEOUT_SECONDS = 300
 # -----------------------------------------------------------------------------
 # AUDIOGOAL_SENSOR
 # -----------------------------------------------------------------------------
@@ -204,8 +219,13 @@ def get_config(
         model_dir: suffix for output dirs
         run_type: either train or eval
     """
-    config = merge_from_path(_C.clone(), config_paths)
+    config = _C.clone()
+    config.TASK_CONFIG = _TC.clone()
+    config = merge_from_path(config, config_paths)
     config.TASK_CONFIG = get_task_config(config_paths=config.BASE_TASK_CONFIG_PATH)
+    # Apply experiment TASK_CONFIG overrides after loading the base task YAML.
+    config.TASK_CONFIG.defrost()
+    config = merge_from_path(config, config_paths)
 
     # config_name = os.path.basename(config_paths).split('.')[0]
     if model_dir is None:
