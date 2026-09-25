@@ -65,18 +65,15 @@ class ScaleDotProductAttention(nn.Module):
         batch_size, head, length, d_tensor = k.size()
 
         # 1. dot product Query with Key^T to compute similarity
-        k_t = k.transpose(2, 3)  # transpose
-        score = (q @ k_t) / math.sqrt(d_tensor)  # scaled dot product
-
-        # 2. apply masking (opt)
-        if mask is not None:
-            score = score.masked_fill(mask == 0, -10000)
-
-        # 3. pass them softmax to make [0, 1] range
-        score = self.softmax(score)
-
-        # 4. multiply with Value
-        v = score @ v
+        # FP16 QK products can overflow before softmax even with finite inputs.
+        # Explicitly disable autocast for scores, softmax and value accumulation.
+        with torch.autocast(device_type=q.device.type, enabled=False):
+            k_t = k.float().transpose(2, 3)
+            score = (q.float() @ k_t) / math.sqrt(d_tensor)
+            if mask is not None:
+                score = score.masked_fill(mask == 0, -10000)
+            score = self.softmax(score)
+            v = score @ v.float()
 
         return v, score
 
@@ -88,6 +85,7 @@ class LayerNorm(nn.Module):
         self.eps = eps
 
     def forward(self, x):
+        x = x.float()  # Keep variance and epsilon representable under AMP.
         mean = x.mean(-1, keepdim=True)
         var = x.var(-1, unbiased=False, keepdim=True)
         # '-1' means last dimension. 

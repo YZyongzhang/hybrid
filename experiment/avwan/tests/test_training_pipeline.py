@@ -44,10 +44,10 @@ class TrainingTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
         self.config = load_config(ROOT / 'config/audiogoal.yaml')
-        self.config['data'].update(source=str(self.root / 'source'), cache=str(self.root / 'cache'),
+        self.config['data'].update(val_source='', source=str(self.root / 'source'), cache=str(self.root / 'cache'),
                                    shard_size=4, convert_workers=2, val_fraction=.25)
         self.config['training'].update(output=str(self.root / 'run'), workers=0, batch_size=3,
-                                       epochs=1, device='cpu', cpu_threads=1, amp=False, log_every=100)
+                                       epochs=1, device='cpu', cpu_threads=1, amp=False, log_every=100, tensorboard=False)
         self.raw, self.previous = {}, {}
         for scene in range(4):
             rows, previous = [], None
@@ -106,6 +106,69 @@ class TrainingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'binary'):
             read_episode(path, self.config['data']['inputs'])
 
+    def test_independent_validation_uses_all_training_episodes(self):
+        import shutil
+        original = self.root / 'source' / 'episodes' / 'scene3' / '0.pkl.gz'
+        target = self.root / 'val' / 'episodes' / 'scene3' / '0.pkl.gz'
+        target.parent.mkdir(parents=True)
+        shutil.copyfile(original, target)
+        self.config['data']['val_source'] = str(self.root / 'val')
+        with self.assertRaisesRegex(ValueError, 'overlap'):
+            prepare(self.config)
+        original.unlink()
+        manifest = prepare(self.config)
+        self.assertEqual(manifest['split_method'], 'independent_source')
+        self.assertEqual(manifest['samples'], {'train': 9, 'val': 3})
+        self.assertEqual(manifest['split_episodes'], {'train': 3, 'val': 1})
+        self.assertEqual(prepare(self.config), manifest)
+
+    def test_rollout_adapter_uses_previous_decision_and_resets_history(self):
+        from experiment.avwan.evaluate import LearnedPolicy
+        class Probe(torch.nn.Module):
+            def forward_joint(self, audio, rgb, depth, gm, am, mask):
+                self.inputs = (audio, rgb, depth, gm, am, mask)
+                return mask.float(), torch.zeros((len(audio), 8))
+        model = Probe()
+        policy = LearnedPolicy(model, 'cpu')
+        mask = np.ones(81, dtype=bool)
+        obs, following = observation(1), observation(2)
+        policy.act(obs, mask)
+        self.assertEqual(float(model.inputs[1][..., :3].abs().sum()), 0.)
+        policy.act(following, mask)
+        np.testing.assert_allclose(model.inputs[1][0, ..., :3].numpy(), obs['rgb'] / 255., atol=1e-7)
+        np.testing.assert_array_equal(model.inputs[2][0, ..., :1].numpy(), obs['depth'])
+        np.testing.assert_array_equal(model.inputs[3][0].numpy(), following['gm'])
+        policy.reset()
+        policy.act(following, mask)
+        self.assertEqual(float(model.inputs[2][..., :1].abs().sum()), 0.)
+
+    def test_attention_large_half_precision_scores_remain_finite(self):
+        from experiment.avwan.model.Encoder import ScaleDotProductAttention, LayerNorm
+        query = torch.full((2, 4, 3, 32), 1000., dtype=torch.float16)
+        value = torch.ones_like(query)
+        output, probabilities = ScaleDotProductAttention()(query, query, value)
+        self.assertTrue(torch.isfinite(output).all())
+        torch.testing.assert_close(probabilities.sum(-1), torch.ones_like(probabilities.sum(-1)))
+        normalized = LayerNorm(32)(torch.zeros(2, 3, 32, dtype=torch.float16))
+        self.assertTrue(torch.isfinite(normalized).all())
+
+    def test_evaluation_loader_does_not_truncate_at_one_hundred(self):
+        from experiment.avwan.evaluate import load_episodes
+        path = self.root / 'evaluation.json.gz'
+        episodes = [dict(episode_id=str(i), scene_id='scene/scene.glb',
+                         start_position=[0., 0., 0.], start_rotation=[0., 0., 0., 1.],
+                         goals=[dict(position=[1., 0., 0.])], info={'sound': 'telephone'})
+                    for i in range(251)]
+        with gzip.open(path, 'wt') as handle:
+            json.dump({'episodes': episodes}, handle)
+        config = get_config()
+        config.defrost()
+        config.TASK_CONFIG.DATASET.DATA_PATH = str(path)
+        config.freeze()
+        dataset = load_episodes(config)
+        self.assertEqual(len(dataset.episodes), 251)
+        self.assertEqual({ep.episode_id for ep in dataset.episodes}, {str(i) for i in range(251)})
+
     def test_persistent_workers_have_complete_deterministic_epochs(self):
         manifest = prepare(self.config)
         self.config['training']['workers'] = 2
@@ -120,6 +183,34 @@ class TrainingTests(unittest.TestCase):
         self.assertEqual(orders[0], orders[2])
         self.assertNotEqual(orders[0], orders[1])
         del loader
+
+    def test_evaluation_coordinator_resumes_process_batches(self):
+        from types import SimpleNamespace
+        from experiment.avwan.evaluate_candidates import main
+        run_dir = self.root / 'evaluation_run'
+        run_dir.mkdir()
+        (run_dir / 'top_checkpoints.json').write_text(json.dumps([
+            dict(epoch=10, file='epoch_010.pt', val_loss=3.0)]))
+        counts = {}
+
+        def process(command, **kwargs):
+            folder = Path(command[command.index('--output') + 1])
+            self.assertIn('--resume', command)
+            self.assertEqual(command[command.index('--max-new-episodes') + 1], '25')
+            folder.mkdir(exist_ok=True)
+            counts[folder.name] = counts.get(folder.name, 0) + 1
+            summary = dict(epoch=10, episodes=counts[folder.name], planned=2,
+                           spl=.5, success_rate=1., errors=0)
+            (folder / 'summary.json').write_text(json.dumps(summary))
+            return SimpleNamespace(returncode=0)
+
+        with patch.object(sys, 'argv', ['evaluate_candidates', '--run', str(run_dir), '--test-workers', '1']), \
+                patch('experiment.avwan.evaluate_candidates.subprocess.run', side_effect=process):
+            main()
+        self.assertEqual(counts, {'val_epoch_010': 2, 'test_selected': 2})
+        result = json.loads((run_dir / 'rollouts/final_results.json').read_text())
+        self.assertEqual(result['selected'], 'epoch_010.pt')
+        self.assertEqual(result['test']['episodes'], 2)
 
     def test_new_modalities_receive_gradients_and_mask_invalid_actions(self):
         prepare(self.config)
@@ -149,6 +240,7 @@ class TrainingTests(unittest.TestCase):
             torch.testing.assert_close(angles, audio_only)
 
     def test_checkpoint_resume_and_export(self):
+        self.config['training']['tensorboard'] = True
         manifest = prepare(self.config)
         train(self.config, manifest)
         checkpoint = self.root / 'run' / 'latest.pt'
@@ -160,6 +252,10 @@ class TrainingTests(unittest.TestCase):
         for key in ('geometric_encoder.cnn.0.weight', 'acoustic_encoder.cnn.0.weight', 'mask_encoder.0.weight'):
             self.assertFalse(torch.equal(first['model'][key], second['model'][key]))
         weights = torch.load(self.root / 'run' / 'foundation_weights.pt', weights_only=True)
+        from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+        events = EventAccumulator(str(self.root / 'run' / 'tensorboard')).Reload()
+        self.assertIn('val/loss', events.Tags()['scalars'])
+        self.assertEqual(len(events.Scalars('val/loss')), 2)
         Network().load_state_dict(weights)
         self.config['training']['output'] = str(self.root / 'continuous')
         train(self.config, manifest)

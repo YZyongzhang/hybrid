@@ -140,9 +140,25 @@ def prepare(config):
     if list(inputs) != list(INPUTS):
         raise ValueError(f'Foundation inputs must be {list(INPUTS)}')
     source, files, records, fingerprint = snapshot(cfg['source'], cfg['max_episodes'])
+    partitions = None
+    val_identity = None
+    source_records = records
+    if cfg.get('val_source'):
+        val_source, val_files, val_records, val_fingerprint = snapshot(cfg['val_source'], cfg['max_episodes'])
+        train_keys = {(scene_name(p), p.name) for p in files}
+        val_keys = {(scene_name(p), p.name) for p in val_files}
+        if train_keys & val_keys or set(files) & set(val_files):
+            raise ValueError('Training and independent validation episodes overlap')
+        partitions = {'train': list(files), 'val': list(val_files)}
+        for paths in partitions.values():
+            random.Random(config['seed']).shuffle(paths)
+        val_identity = dict(source=str(val_source), fingerprint=val_fingerprint)
+        source_records = {'train': records, 'val': val_records}
+        files = files + val_files
+        records = records + val_records
     options = {key: cfg[key] for key in ('inputs', 'shard_size', 'val_fraction', 'split_by', 'max_episodes')}
     options['seed'] = config['seed']
-    identity = dict(version=VERSION, purpose=PURPOSE, source=str(source), fingerprint=fingerprint, options=options)
+    identity = dict(version=VERSION, purpose=PURPOSE, source=str(source), fingerprint=fingerprint, options=options, validation=val_identity)
     cache = Path(cfg['cache'])
     manifest_path = cache / 'manifest.json'
     if manifest_path.exists():
@@ -160,10 +176,15 @@ def prepare(config):
     if cache.exists() and any(cache.iterdir()):
         raise FileExistsError(f'Incomplete/nonempty cache: {cache}; choose a new data.cache directory')
     cache.mkdir(parents=True, exist_ok=True)
-    partitions, val_groups = split_files(files, cfg['val_fraction'], config['seed'], cfg['split_by'])
+    if partitions is None:
+        partitions, val_groups = split_files(files, cfg['val_fraction'], config['seed'], cfg['split_by'])
+    else:
+        val_groups = sorted({scene_name(p) for p in partitions['val']})
     manifest = dict(identity=identity, splits={}, observation_schema=None, action_count=None,
-                    validation_groups=val_groups, episodes=len(files))
-    write_json(cache / 'sources.json', records)
+                    validation_groups=val_groups, episodes=len(files),
+                    split_episodes={k: len(v) for k, v in partitions.items()},
+                    split_method='independent_source' if val_identity else cfg['split_by'])
+    write_json(cache / 'sources.json', source_records)
     started, processed = time.monotonic(), 0
     stats = {str(p): (size, mtime) for p, (_, size, mtime) in zip(files, records)}
     for split, paths in partitions.items():

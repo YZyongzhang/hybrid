@@ -116,6 +116,7 @@ _TC.COLLECT.RESUME = False
 _TC.COLLECT.TIMEOUT_SECONDS = 300
 # Register the training schema with YACS; audiogoal.yaml owns its defaults.
 _TC.TRAIN = CN(yaml.safe_load(Path(__file__).with_name('audiogoal.yaml').read_text())['TRAIN'])
+_TC.TRAIN.OPEN = False  # Schema default; task YAML controls actual dispatch.
 # -----------------------------------------------------------------------------
 # AUDIOGOAL_SENSOR
 # -----------------------------------------------------------------------------

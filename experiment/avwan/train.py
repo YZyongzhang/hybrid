@@ -23,6 +23,8 @@ def training_config(node):
                   stage=node['STAGE'], resume=node['RESUME'])
     for section, key in ((config['data'], 'source'), (config['data'], 'cache'), (config['training'], 'output')):
         section[key] = str((ROOT / Path(section[key]).expanduser()).resolve())
+    if config['data'].get('val_source'):
+        config['data']['val_source'] = str((ROOT / Path(config['data']['val_source']).expanduser()).resolve())
     return config
 
 

@@ -29,7 +29,7 @@ python run_avwan.py
 - `TRAIN.STAGE: prepare`：只转换缓存。
 - `TRAIN.STAGE: train`：要求缓存已完成，再训练。
 
-仓库默认 `TRAIN.OPEN` 保持 false，开启后上述命令即可训练。
+当前实验已将 `TRAIN.OPEN` 设为 true。已有结果目录需要通过 RESUME 续训，或更换 OUTPUT。
 `TRAIN.DATA.SOURCE` 明确指定训练采集目录，与用于采集的 `DATASET.SPLIT`、
 `COLLECT.TO_PATH` 独立。例如采集 val_telephone 时，训练源仍可保持 telephone train。
 原来的独立 `config/train.yaml` 已移除。
@@ -94,7 +94,8 @@ loss = ACTION_LOSS_WEIGHT × waypoint_cross_entropy
 默认 `SHARD_SIZE: 512`、`WORKERS: 4`、`PREFETCH_FACTOR: 2`、`BATCH_SIZE: 64`。
 缓存建议放本地 SSD。日志记录 `samples_per_second` 和 `data_wait_seconds`，
 应以初始化后的完整 epoch 评估吞吐。
-默认按场景留出 10% 验证组，保证场景不跨 train/val；这不是官方 val/test split。
+设置 `TRAIN.DATA.VAL_SOURCE` 时，全部 SOURCE 用于训练，VAL_SOURCE 独立用于验证，检查 episode 不重叠。
+VAL_SOURCE 为空时才按场景留出 10% 验证组。
 
 缓存 v3 包含 gm/am，默认目录为 `data_cache/telephone_foundation_spatial_v3`。
 不能直接复用旧 v2 缓存或旧模型 checkpoint，旧输出文件保留。
@@ -103,7 +104,7 @@ loss = ACTION_LOSS_WEIGHT × waypoint_cross_entropy
 
 ## 配置、结果与续训
 
-`TRAIN.DATA` 管理 SOURCE、CACHE、INPUTS、SHARD_SIZE、CONVERT_WORKERS、
+`TRAIN.DATA` 管理 SOURCE、VAL_SOURCE、CACHE、INPUTS、SHARD_SIZE、CONVERT_WORKERS、
 VAL_FRACTION、SPLIT_BY、MAX_EPISODES；其他训练参数直接位于 TRAIN 中。
 其中 INPUTS 为 `[rgb, depth, spectrogram, gm, am]`。
 所有相对 SOURCE/CACHE/OUTPUT/RESUME 路径均基于 `experiment/avwan`。
@@ -156,3 +157,37 @@ python experiment/avwan/train.py --max-episodes 256 \
 独立 `train.py` 也读取 audiogoal.yaml 的 TRAIN 配置，用于诊断时显式启动训练，
 不受 OPEN 开关限制。`MAX_EPISODES` / `MAX_BATCHES` 为 0 时使用完整数据。
 根入口使用现有 ss 环境；独立训练入口仅需 PyTorch、NumPy、PyYAML。
+
+## TensorBoard 与闭环导航评估
+
+`TRAIN.TENSORBOARD: true` 将训练/验证的总 loss、动作 loss、方向 loss、准确率和吞吐
+记录到 `TRAIN.OUTPUT/tensorboard/`。例如：
+
+```bash
+tensorboard --logdir experiment/avwan/runs/telephone_train_val_20260925/tensorboard
+```
+
+`TRAIN.SAVE_TOP_K: 3` 维护验证 loss 最低的三个候选 checkpoint，记录在
+`top_checkpoints.json`。训练结束后运行：
+
+```bash
+python -m experiment.avwan.evaluate_candidates \
+  --run experiment/avwan/runs/telephone_train_val_20260925 --test-workers 4 --test-concurrency 2
+```
+
+该流程在采集 val 的相同 episode 上比较三个候选模型的实际导航 SPL，以最高验证 SPL
+选择一个 checkpoint，再对完整 test_telephone split 评估一次。测试结果不参与选模。
+策略仅根据观测和 action mask 选择 waypoint，底层 planner 负责执行，不调用专家选点。
+评估脚本逐条保存轨迹、SPL、成功率、错误和选择清单；汇总输出到 `rollouts/`。
+SoundSpaces 原 reader 每次截取 100 条，评估器分批解析，从而覆盖完整选定集合。
+`--test-workers` 指定 episode 分片数量，`--test-concurrency` 限制同时运行的进程数
+（默认 2，大型声学场景占用较多内存）。续跑时保持分片数量不变，可调低并发。
+协调器默认每 25 条新轨迹或进程峰值 RSS 达到 8192 MiB 后，在 episode 边界重启
+仿真进程，释放原生内存；分别通过 `--process-episodes` 和 `--process-rss-mb` 调整。
+逐条固定随机种子，汇总时校验重复和遗漏；支持从已有输出续跑。
+这里的闭环环境是 Habitat/SoundSpaces 仿真。
+
+本次实验目录为 `runs/telephone_train_val_20260925/`。`best.pt` 和
+`foundation_weights.pt` 按离线验证 loss 选择；`best_spl.pt` 按验证闭环 SPL 选择。
+完整评估结束后的指标见该目录 `RESULTS.md` 与 `rollouts/final_results.json`，
+训练曲线见 `training_curves.png`。

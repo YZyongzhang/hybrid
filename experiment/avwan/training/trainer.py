@@ -63,6 +63,13 @@ def train(config, manifest, resume=None):
         return
     write_json(output / 'config.json', config)
     write_json(output / 'dataset.json', manifest)
+    writer = None
+    if cfg.get('tensorboard', False):
+        from torch.utils.tensorboard import SummaryWriter
+        writer = SummaryWriter(str(output / 'tensorboard'))
+    candidates = []
+    if resume and (output / 'top_checkpoints.json').exists():
+        candidates = json.loads((output / 'top_checkpoints.json').read_text())
     train_loader, val_loader = (make_loader(config, split) for split in ('train', 'val'))
     print(f'Training AVWAN hybrid.Network on {device}, samples={manifest["samples"]}, '
           f'parameters={sum(p.numel() for p in model.parameters()):,}', flush=True)
@@ -93,6 +100,9 @@ def train(config, manifest, resume=None):
             metrics['loss'] = loss
             for key, value in metrics.items():
                 totals[key] = totals.get(key, 0.) + float(value.detach()) * count
+            if writer and update and (global_step == 1 or global_step % cfg['log_every'] == 0):
+                for key, value in metrics.items():
+                    writer.add_scalar(f'train_step/{key}', float(value.detach()), global_step)
             if step % cfg['log_every'] == 0:
                 print(f'{"train" if update else "val"} epoch={epoch+1} batch={step}/{len(loader)} '
                       f'loss={totals["loss"]/seen:.4f} samples/s={seen/(time.monotonic()-started):.1f}', flush=True)
@@ -105,22 +115,39 @@ def train(config, manifest, resume=None):
         return dict(**{key: value / seen for key, value in totals.items()}, samples=seen,
                     seconds=elapsed, samples_per_second=seen/elapsed, data_wait_seconds=data_seconds)
 
-    for epoch in range(start_epoch, cfg['epochs']):
-        train_metrics = run_epoch(train_loader, True, epoch)
-        val_metrics = run_epoch(val_loader, False, epoch)
-        improved = val_metrics['loss'] < best
-        best = min(best, val_metrics['loss'])
-        row = dict(epoch=epoch + 1, global_step=global_step, train=train_metrics, val=val_metrics)
-        print(json.dumps(row), flush=True)
-        with (output / 'metrics.jsonl').open('a') as handle:
-            handle.write(json.dumps(row) + '\n')
-        state = dict(epoch=epoch + 1, global_step=global_step, best_loss=best, signature=signature,
-                     config=config, model=model.state_dict(),
-                     optimizer=optimizer.state_dict(), scaler=scaler.state_dict(),
-                     rng=dict(python=random.getstate(), numpy=np.random.get_state(), torch=torch.get_rng_state(),
-                              cuda=torch.cuda.get_rng_state_all() if device.type == 'cuda' else None))
-        save_checkpoint(output / 'latest.pt', state)
-        if improved:
-            save_checkpoint(output / 'best.pt', state)
-            save_checkpoint(output / 'foundation_weights.pt', model.state_dict())
+    try:
+        for epoch in range(start_epoch, cfg['epochs']):
+            train_metrics = run_epoch(train_loader, True, epoch)
+            val_metrics = run_epoch(val_loader, False, epoch)
+            if writer:
+                for split, metrics in (('train', train_metrics), ('val', val_metrics)):
+                    for key, value in metrics.items():
+                        writer.add_scalar(f'{split}/{key}', value, epoch + 1)
+                writer.add_scalar('optimizer/learning_rate', optimizer.param_groups[0]['lr'], epoch + 1)
+                writer.flush()
+            improved = val_metrics['loss'] < best
+            best = min(best, val_metrics['loss'])
+            row = dict(epoch=epoch + 1, global_step=global_step, train=train_metrics, val=val_metrics)
+            print(json.dumps(row), flush=True)
+            with (output / 'metrics.jsonl').open('a') as handle:
+                handle.write(json.dumps(row) + '\n')
+            state = dict(epoch=epoch + 1, global_step=global_step, best_loss=best, signature=signature,
+                         config=config, model=model.state_dict(),
+                         optimizer=optimizer.state_dict(), scaler=scaler.state_dict(),
+                         rng=dict(python=random.getstate(), numpy=np.random.get_state(), torch=torch.get_rng_state(),
+                                  cuda=torch.cuda.get_rng_state_all() if device.type == 'cuda' else None))
+            keep = cfg.get('save_top_k', 0)
+            if keep and (len(candidates) < keep or val_metrics['loss'] < candidates[-1]['val_loss']):
+                name = f'epoch_{epoch+1:03d}.pt'
+                save_checkpoint(output / name, state)
+                candidates.append(dict(epoch=epoch+1, file=name, val_loss=val_metrics['loss']))
+                candidates = sorted(candidates, key=lambda x: (x['val_loss'], x['epoch']))[:keep]
+                write_json(output / 'top_checkpoints.json', candidates)
+            save_checkpoint(output / 'latest.pt', state)
+            if improved:
+                save_checkpoint(output / 'best.pt', state)
+                save_checkpoint(output / 'foundation_weights.pt', model.state_dict())
+    finally:
+        if writer:
+            writer.close()
     print(f'Training complete. Checkpoints: {output}', flush=True)

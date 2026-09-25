@@ -90,9 +90,10 @@ TASK:
 
 
 COLLECT:
+  OPEN: true
   TYPE: greedy
   RESUME: true  # Skip scenes that already have collected data in TO_PATH.
-  TO_PATH: "/data/Getuanhui/avwan_telephone_greedy_val"
+  TO_PATH: "/data/Getuanhui/avwan_multiple_greedy_train"
 
 
 
@@ -113,7 +114,8 @@ TRAIN:
   SEED: 20260925
   DATA:
     SOURCE: /data/Getuanhui/avwan_telephone_greedy_train
-    CACHE: data_cache/telephone_foundation_spatial_v3
+    VAL_SOURCE: /data/Getuanhui/avwan_telephone_greedy_val
+    CACHE: data_cache/telephone_train_val_spatial_v3
     INPUTS:
     - rgb
     - depth
@@ -125,7 +127,7 @@ TRAIN:
     VAL_FRACTION: 0.1
     SPLIT_BY: scene
     MAX_EPISODES: 0
-  OUTPUT: runs/telephone_hybrid
+  OUTPUT: runs/telephone_train_val_20260925
   DEVICE: auto
   EPOCHS: 30
   BATCH_SIZE: 64
@@ -141,3 +143,5 @@ TRAIN:
   AMP: true
   LOG_EVERY: 50
   MAX_BATCHES: 0
+  TENSORBOARD: true
+  SAVE_TOP_K: 3
