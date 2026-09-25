@@ -1,8 +1,16 @@
 # AVWAN Foundation Model 训练
 
+Foundation 完成后，使用 [冻结特征与 LSTM SAC-CQL pipeline](offline/README.md) 进行后续 offline RL：
+
+```bash
+python experiment/avwan/train_offline_rl.py
+```
+
+默认先提取所有训练/验证 episode 的冻结特征，再训练 30 epoch；配置见 `config/offline_rl.yaml`。
+
 训练使用 `model/hybrid.py` 中的 `Network`，在用户更新的视听 Transformer 架构上，
 加入 AVWAN 几何地图、声学地图和 waypoint 可行性信息。
-所有训练配置统一在 `config/audiogoal.yaml` 的 **TRAIN** 节点。
+Foundation 训练配置统一在 `config/audiogoal.yaml` 的 **TRAIN** 节点。
 
 ## 从 run_avwan.py 开始训练
 

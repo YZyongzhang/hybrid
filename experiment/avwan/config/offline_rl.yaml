@@ -1,0 +1,27 @@
+seed: 20260925
+device: cuda
+cpu_threads: 4
+features:
+  checkpoint: runs/telephone_train_val_20260925/epoch_010.pt
+  source: /data/Getuanhui/avwan_telephone_greedy_train
+  val_source: /data/Getuanhui/avwan_telephone_greedy_val
+  cache: data_cache/telephone_epoch010_frozen_rl_v1
+  batch_size: 64
+  episode_batch_size: 8
+  workers: 4
+  max_episodes: 0
+training:
+  output: runs/telephone_epoch010_offline_lstm_saccql_v1
+  epochs: 30
+  batch_size: 32
+  hidden_dim: 256
+  lstm_layers: 1
+  learning_rate: 0.0003
+  initial_alpha: 0.1
+  entropy_ratio: 0.5
+  tau: 0.005
+  cql_weight: 1.0
+  cql_temperature: 1.0
+  grad_clip: 10.0
+  log_every: 100
+  tensorboard: true

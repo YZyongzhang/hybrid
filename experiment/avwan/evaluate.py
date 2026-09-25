@@ -100,10 +100,15 @@ def evaluate(args):
     torch.set_num_threads(2)
     device = torch.device(args.device)
     checkpoint = Path(args.checkpoint).resolve()
-    state = torch.load(checkpoint, map_location='cpu')
-    model = Network(action_count=state['signature']['actions']).to(device)
-    model.load_state_dict(state['model'])
-    policy = LearnedPolicy(model, device)
+    state = torch.load(checkpoint, map_location='cpu', weights_only=False)
+    foundation_path = getattr(args, 'foundation_checkpoint', None)
+    if foundation_path:
+        from experiment.avwan.offline.policy import OfflinePolicy
+        policy = OfflinePolicy.from_checkpoint(state, foundation_path, device)
+    else:
+        model = Network(action_count=state['signature']['actions']).to(device)
+        model.load_state_dict(state['model'])
+        policy = LearnedPolicy(model, device)
     config = get_config(args.config, opts=['TASK_CONFIG.DATASET.SPLIT', args.split])
     config.defrost()
     config.TASK_CONFIG.TRAIN.OPEN = False
@@ -125,6 +130,10 @@ def evaluate(args):
                     planned=len(selection), selection_sha256=hashlib.sha256(json.dumps(selection).encode()).hexdigest(),
                     policy='masked_argmax', max_episode_steps=config.TASK_CONFIG.ENVIRONMENT.MAX_EPISODE_STEPS,
                     prediction_interval=config.PREDICTION_INTERVAL)
+    if foundation_path:
+        metadata.update(policy='frozen_foundation_lstm_sac_masked_argmax',
+                        foundation_checkpoint=str(Path(foundation_path).resolve()),
+                        foundation_sha256=state['signature']['features']['checkpoint_sha256'])
     if args.shards > 1:
         metadata.update(shards=args.shards, shard_index=args.shard_index)
     output = Path(args.output).resolve()
@@ -141,6 +150,8 @@ def evaluate(args):
     index = output / 'episodes.jsonl'
     rows = [json.loads(line) for line in index.read_text().splitlines()] if index.exists() else []
     complete = {(r['scene'], r['episode_id']) for r in rows}
+    if len(complete) != len(rows) or not complete.issubset(set(selection)):
+        raise ValueError('Duplicate or unexpected episodes in evaluation output')
     if complete == set(selection):
         if not (output / 'summary.json').exists():
             write_json(output / 'summary.json', aggregate(rows, metadata))
@@ -198,6 +209,7 @@ def evaluate(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--checkpoint', required=True)
+    parser.add_argument('--foundation-checkpoint', help='Frozen encoder checkpoint for an offline RL SAC policy')
     parser.add_argument('--output', required=True)
     parser.add_argument('--split', default='val_telephone')
     parser.add_argument('--selection-source', help='Evaluate exactly these collected episode IDs')

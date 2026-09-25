@@ -1,6 +1,6 @@
 """Choose a checkpoint by validation rollout SPL, then evaluate the held-out test split."""
 import argparse
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 from pathlib import Path
 import subprocess
@@ -14,11 +14,14 @@ from experiment.avwan.evaluate import aggregate
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run', required=True)
+    parser.add_argument('--foundation-checkpoint', help='Evaluate recurrent SAC candidates with this frozen encoder')
+    parser.add_argument('--seed', type=int, default=20260925)
     parser.add_argument('--validation-source', default='/data/Getuanhui/avwan_telephone_greedy_val')
     parser.add_argument('--test-max-episodes', type=int, default=0)
     parser.add_argument('--test-workers', type=int, default=4)
     parser.add_argument('--test-concurrency', type=int, default=2,
                         help='Maximum simultaneous test processes; large acoustic scenes use substantial RAM')
+    parser.add_argument('--validation-concurrency', type=int, default=1)
     parser.add_argument('--process-episodes', type=int, default=25,
                         help='Restart simulator processes between episode batches to release native allocations')
     parser.add_argument('--process-rss-mb', type=int, default=8192)
@@ -28,6 +31,9 @@ def main():
     output = run / 'rollouts'
     output.mkdir(exist_ok=True)
     candidates = json.loads((run / 'top_checkpoints.json').read_text())
+    if args.foundation_checkpoint:
+        # Different offline criteria can select the same epoch; evaluate it once.
+        candidates = list({item['epoch']: item for item in candidates}.values())
     if args.wait_validation:
         deadline = time.monotonic() + 7200
         while True:
@@ -46,6 +52,9 @@ def main():
     def evaluate(checkpoint, folder, split, selection=None, limit=0, shard=0, shards=1):
         command = [sys.executable, '-m', 'experiment.avwan.evaluate', '--checkpoint', str(checkpoint),
                    '--output', str(folder), '--split', split, '--resume']
+        command += ['--seed', str(args.seed)]
+        if args.foundation_checkpoint:
+            command += ['--foundation-checkpoint', str(Path(args.foundation_checkpoint).resolve())]
         command += ['--shards', str(shards), '--shard-index', str(shard)]
         command += ['--max-new-episodes', str(args.process_episodes), '--max-rss-mb', str(args.process_rss_mb)]
         if selection:
@@ -71,14 +80,24 @@ def main():
             print(f'{folder.name}: saved {previous}/{summary["planned"]}; restarting simulator process', flush=True)
         print(json.dumps({k: summary[k] for k in ('epoch','episodes','spl','success_rate')}), flush=True)
         return summary
-    for item in candidates:
+    def validate_candidate(item):
         summary = evaluate(run / item['file'], output / f'val_epoch_{item["epoch"]:03d}',
                            'val_telephone', args.validation_source)
-        comparison.append(dict(**item, rollout=summary))
-        write_json(output / 'validation_comparison.json', comparison)
+        return dict(**item, rollout=summary)
+    if args.validation_concurrency < 1:
+        raise ValueError('validation-concurrency must be positive')
+    with ThreadPoolExecutor(max_workers=args.validation_concurrency) as pool:
+        futures = [pool.submit(validate_candidate, item) for item in candidates]
+        for future in as_completed(futures):
+            comparison.append(future.result())
+            comparison.sort(key=lambda item: item['epoch'])
+            write_json(output / 'validation_comparison.json', comparison)
     # Tie-breaks use validation success and offline loss; no test feedback is used.
     best = max(comparison, key=lambda x: (x['rollout']['spl'], x['rollout']['success_rate'], -x['val_loss']))
     write_json(output / 'selected_checkpoint.json', best)
+    if args.foundation_checkpoint:
+        import shutil
+        shutil.copyfile(run / best['file'], run / 'best_spl.pt')
     if args.test_workers < 1 or args.test_concurrency < 1:
         raise ValueError('test-workers and test-concurrency must be positive')
     if args.test_workers == 1:
@@ -91,6 +110,10 @@ def main():
                             limit=args.test_max_episodes, shard=index, shards=args.test_workers)
         with ThreadPoolExecutor(max_workers=min(args.test_workers, args.test_concurrency)) as pool:
             summaries = list(pool.map(worker, range(args.test_workers)))
+        for summary in summaries[1:]:
+            for key in ('checkpoint_sha256', 'foundation_sha256', 'split', 'seed', 'policy'):
+                if summary.get(key) != summaries[0].get(key):
+                    raise RuntimeError(f'Evaluation workers disagree on {key}')
         rows, selections = [], []
         for index in range(args.test_workers):
             child = folder / f'worker_{index}'
@@ -109,7 +132,11 @@ def main():
         write_json(folder / 'summary.json', test)
         write_json(folder / 'selection.json', sorted(selections))
         (folder / 'episodes.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in sorted(rows, key=lambda r:(r['scene'],r['episode_id']))))
-    write_json(output / 'final_results.json', dict(selection='validation rollout SPL among top offline-loss checkpoints',
+    criterion = ('validation rollout SPL among best critic loss, best policy NLL, and final epoch'
+                 if args.foundation_checkpoint else 'validation rollout SPL among top offline-loss checkpoints')
+    if args.test_max_episodes and test['episodes'] != args.test_max_episodes:
+        raise RuntimeError('Test episode count differs from the requested random sample size')
+    write_json(output / 'final_results.json', dict(selection=criterion,
                validation=comparison, selected=best['file'], test=test))
     print('Finished validation selection and held-out testing', flush=True)
 
