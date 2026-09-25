@@ -10,6 +10,8 @@ from typing import List, Optional, Union
 import os
 import logging
 import shutil
+from pathlib import Path
+import yaml
 
 import numpy as np
 
@@ -112,6 +114,8 @@ _TC.COLLECT.SUCCESS_ONLY = False
 _TC.COLLECT.VISUALIZE = True
 _TC.COLLECT.RESUME = False
 _TC.COLLECT.TIMEOUT_SECONDS = 300
+# Register the training schema with YACS; audiogoal.yaml owns its defaults.
+_TC.TRAIN = CN(yaml.safe_load(Path(__file__).with_name('audiogoal.yaml').read_text())['TRAIN'])
 # -----------------------------------------------------------------------------
 # AUDIOGOAL_SENSOR
 # -----------------------------------------------------------------------------

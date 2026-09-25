@@ -12,7 +12,7 @@ from configs.default import get_config
 from Dataset.dataset_avnav import AVNavDataset, convert_pickle_to_pt
 from experiment.avnav.config import resolve_path
 from experiment.avnav.run import run_conversion, run_training
-from experiment.avnav.model.hybrid import Network
+from experiment.avwan.model.hybrid import Network
 from experiment.avnav.train_class.hybrid_train import Train
 
 

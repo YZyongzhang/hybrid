@@ -92,14 +92,52 @@ TASK:
 COLLECT:
   TYPE: greedy
   RESUME: true  # Skip scenes that already have collected data in TO_PATH.
-  TO_PATH: "/data/Getuanhui/avwan_telephone_greedy_train"
+  TO_PATH: "/data/Getuanhui/avwan_telephone_greedy_val"
 
 
 
 DATASET:
   TYPE: "AudioNav"
-  SPLIT: "train_telephone"
+  SPLIT: "val_telephone"
   CONTENT_SCENES: ["*"]
   VERSION: "v1"
   SCENES_DIR: "data/scene_datasets/mp3d"
   DATA_PATH: "data/datasets/audionav/mp3d/{version}/{split}/{split}.json.gz"
+
+# TRAIN.OPEN=true selects training directly in run_avwan.py, before collection.
+# Relative DATA/OUTPUT/RESUME paths are rooted at experiment/avwan.
+TRAIN:
+  OPEN: false
+  STAGE: all
+  RESUME: ''
+  SEED: 20260925
+  DATA:
+    SOURCE: /data/Getuanhui/avwan_telephone_greedy_train
+    CACHE: data_cache/telephone_foundation_spatial_v3
+    INPUTS:
+    - rgb
+    - depth
+    - spectrogram
+    - gm
+    - am
+    SHARD_SIZE: 512
+    CONVERT_WORKERS: 4
+    VAL_FRACTION: 0.1
+    SPLIT_BY: scene
+    MAX_EPISODES: 0
+  OUTPUT: runs/telephone_hybrid
+  DEVICE: auto
+  EPOCHS: 30
+  BATCH_SIZE: 64
+  WORKERS: 4
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  CPU_THREADS: 4
+  LEARNING_RATE: 0.0003
+  WEIGHT_DECAY: 0.0
+  ACTION_LOSS_WEIGHT: 1.0
+  ANGLE_LOSS_WEIGHT: 1.0
+  GRAD_CLIP: 10.0
+  AMP: true
+  LOG_EVERY: 50
+  MAX_BATCHES: 0

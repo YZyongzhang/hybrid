@@ -1,4 +1,4 @@
-"""AVWAN data collection using the existing environment config."""
+"""Run AVWAN training or collection from audiogoal.yaml switches."""
 import argparse
 import os
 from pathlib import Path
@@ -8,8 +8,13 @@ from experiment.avwan.collector import COLLECTER
 
 
 def run(config):
+    if config.TASK_CONFIG.TRAIN.OPEN:
+        from .train import run_training, training_config
+        node = config.TASK_CONFIG.TRAIN
+        run_training(training_config(node), stage=node.STAGE, resume=node.RESUME)
+        return 0
     if not config.TASK_CONFIG.COLLECT.OPEN:
-        print('TASK_CONFIG.COLLECT.OPEN is false; collection disabled.')
+        print('TRAIN.OPEN and COLLECT.OPEN are both false; nothing to run.')
         return 0
     from experiment import AVWANRLEnv
     from soundspaces.datasets.audionav_dataset import AudioNavDataset
@@ -26,7 +31,7 @@ def run(config):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config', help='Optional YAML overrides for config/default.py')
+    parser.add_argument('--config', help='Optional experiment YAML overrides (TRAIN lives under TASK_CONFIG)')
     args = parser.parse_args(argv)
     previous_directory = Path.cwd()
     try:

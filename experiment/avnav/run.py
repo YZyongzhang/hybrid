@@ -60,7 +60,7 @@ def run_training(config):
                               **loader_options)
     val_loader = DataLoader(val_data, batch_size=cfg.BATCH_SIZE, shuffle=False, **loader_options)
 
-    from experiment.avnav.model.hybrid import Network
+    from experiment.avwan.model.hybrid import Network
     from experiment.avnav.train_class.hybrid_train import Train
 
     model = Network().to(device)

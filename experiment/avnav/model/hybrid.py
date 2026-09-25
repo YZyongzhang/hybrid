@@ -1,9 +1,9 @@
 import sys
 import torch
 import torch.nn as nn
-from experiment.avnav.model.vit import ViTEncoder , VisualEncoder , PositionalEcoder
-from experiment.avnav.model.audio import AudioCRNN
-from experiment.avnav.model.Encoder import Encoder
+from experiment.avwan.model.vit import ViTEncoder , VisualEncoder , PositionalEcoder
+from experiment.avwan.model.audio import AudioCRNN
+from experiment.avwan.model.Encoder import Encoder
 class Attention(nn.Module):
     def __init__(self , input_dim , visual_dim , audio_dim ,hidden_dim, output_dim):
         super().__init__()

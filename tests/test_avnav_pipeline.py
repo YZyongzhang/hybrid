@@ -61,7 +61,7 @@ class PipelineTest(unittest.TestCase):
             build_datasets(cfg, 42)
 
     def test_launcher_conversion_training_and_checkpoint_loading(self):
-        from experiment.avnav.model.hybrid import Network
+        from experiment.avwan.model.hybrid import Network
         destination, checkpoints = self.root / "pt", self.root / "checkpoints"
         config = {"TASK_CONFIG": {
             "PT": {"FROM_PATH": str(self.raw), "TO_PATH": str(destination), "SHARD_SIZE": 2},
