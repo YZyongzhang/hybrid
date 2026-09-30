@@ -46,12 +46,20 @@ def load_episodes(config, selection_source=None, max_episodes=0, seed=20260925):
     from soundspaces.datasets.audionav_dataset import AudioNavDataset
     cfg = config.TASK_CONFIG.DATASET
     path = Path(cfg.DATA_PATH.format(version=cfg.VERSION, split=cfg.SPLIT))
-    with gzip.open(path, 'rt') as handle:
+    # Some installed splits provide plain JSON instead of a gzip archive.
+    if not path.exists() and path.suffix == '.gz' and path.with_suffix('').exists():
+        path = path.with_suffix('')
+    opener = gzip.open if path.suffix == '.gz' else open
+    with opener(path, 'rt') as handle:
         raw = json.load(handle)
     records = raw['episodes']
     if not records:
-        for content in sorted((path.parent / 'content').glob('*.json.gz')):
-            with gzip.open(content, 'rt') as handle:
+        contents = sorted((path.parent / 'content').glob('*.json*'))
+        for content in contents:
+            if not (content.name.endswith('.json') or content.name.endswith('.json.gz')):
+                continue
+            opener = gzip.open if content.suffix == '.gz' else open
+            with opener(content, 'rt') as handle:
                 records.extend(json.load(handle)['episodes'])
     def key(ep):
         return Path(ep['scene_id']).stem, str(ep['episode_id'])

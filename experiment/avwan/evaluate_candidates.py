@@ -17,6 +17,9 @@ def main():
     parser.add_argument('--foundation-checkpoint', help='Evaluate recurrent SAC candidates with this frozen encoder')
     parser.add_argument('--seed', type=int, default=20260925)
     parser.add_argument('--validation-source', default='/data/Getuanhui/avwan_telephone_greedy_val')
+    parser.add_argument('--validation-split', default='val_telephone')
+    parser.add_argument('--test-split', default='test_telephone')
+    parser.add_argument('--config', help='Experiment environment configuration passed to each rollout')
     parser.add_argument('--test-max-episodes', type=int, default=0)
     parser.add_argument('--test-workers', type=int, default=4)
     parser.add_argument('--test-concurrency', type=int, default=2,
@@ -53,6 +56,8 @@ def main():
         command = [sys.executable, '-m', 'experiment.avwan.evaluate', '--checkpoint', str(checkpoint),
                    '--output', str(folder), '--split', split, '--resume']
         command += ['--seed', str(args.seed)]
+        if args.config:
+            command += ['--config', str(Path(args.config).resolve())]
         if args.foundation_checkpoint:
             command += ['--foundation-checkpoint', str(Path(args.foundation_checkpoint).resolve())]
         command += ['--shards', str(shards), '--shard-index', str(shard)]
@@ -82,7 +87,7 @@ def main():
         return summary
     def validate_candidate(item):
         summary = evaluate(run / item['file'], output / f'val_epoch_{item["epoch"]:03d}',
-                           'val_telephone', args.validation_source)
+                           args.validation_split, args.validation_source)
         return dict(**item, rollout=summary)
     if args.validation_concurrency < 1:
         raise ValueError('validation-concurrency must be positive')
@@ -95,18 +100,17 @@ def main():
     # Tie-breaks use validation success and offline loss; no test feedback is used.
     best = max(comparison, key=lambda x: (x['rollout']['spl'], x['rollout']['success_rate'], -x['val_loss']))
     write_json(output / 'selected_checkpoint.json', best)
-    if args.foundation_checkpoint:
-        import shutil
-        shutil.copyfile(run / best['file'], run / 'best_spl.pt')
+    import shutil
+    shutil.copyfile(run / best['file'], run / 'best_spl.pt')
     if args.test_workers < 1 or args.test_concurrency < 1:
         raise ValueError('test-workers and test-concurrency must be positive')
     if args.test_workers == 1:
-        test = evaluate(run / best['file'], output / 'test_selected', 'test_telephone', limit=args.test_max_episodes)
+        test = evaluate(run / best['file'], output / 'test_selected', args.test_split, limit=args.test_max_episodes)
     else:
         folder = output / 'test_selected'
         folder.mkdir(exist_ok=True)
         def worker(index):
-            return evaluate(run / best['file'], folder / f'worker_{index}', 'test_telephone',
+            return evaluate(run / best['file'], folder / f'worker_{index}', args.test_split,
                             limit=args.test_max_episodes, shard=index, shards=args.test_workers)
         with ThreadPoolExecutor(max_workers=min(args.test_workers, args.test_concurrency)) as pool:
             summaries = list(pool.map(worker, range(args.test_workers)))

@@ -17,6 +17,7 @@ training:
   hidden_dim: 256
   lstm_layers: 1
   learning_rate: 0.0003
+  gamma: 0.99  # TD target discount; independent of the stored transition discount.
   initial_alpha: 0.1
   entropy_ratio: 0.5
   tau: 0.005

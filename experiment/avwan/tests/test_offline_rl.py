@@ -94,7 +94,8 @@ class OfflineTests(unittest.TestCase):
         for key in first:
             torch.testing.assert_close(first[key], second[key])
 
-    def test_smdp_target_and_optimizer_boundaries(self):
+    def test_training_gamma_target_and_optimizer_boundaries(self):
+        self.cfg['gamma'] = .7
         model = RecurrentSACCQL(4, 3, self.cfg)
         with torch.no_grad():
             for network in (model.target_q1, model.target_q2):
@@ -107,8 +108,13 @@ class OfflineTests(unittest.TestCase):
         episode['discount'][:] = torch.tensor([0., .81])
         batch = collate_episodes([episode])
         loss = model.losses(batch)
-        expected = (1. + 1. + .81 * (2. + .1 * np.log(2.))) / 2.
+        expected = 1. + self.cfg['gamma'] * (2. + .1 * np.log(2.))
         self.assertAlmostEqual(float(loss['td_target']), expected, places=5)
+        batch['discount'].fill_(.2)
+        torch.testing.assert_close(model.losses(batch)['td_target'], loss['td_target'])
+        self.cfg['gamma'] = 0.
+        self.assertAlmostEqual(float(model.losses(batch)['td_target']), 1., places=5)
+        self.cfg['gamma'] = .7
         actor_before = deepcopy(model.actor.state_dict())
         target_before = deepcopy(model.target_q1.state_dict())
         model.update(batch, model.make_optimizers())

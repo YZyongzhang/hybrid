@@ -28,7 +28,7 @@ def report(run):
         ax.set(title=key, xlabel='Epoch')
         ax.grid(alpha=.2)
         ax.legend()
-    fig.suptitle('Epoch-10 frozen foundation + LSTM SAC-CQL')
+    fig.suptitle('Frozen foundation + LSTM SAC-CQL')
     fig.tight_layout()
     fig.savefig(run / 'sac_losses.png', dpi=160)
     plt.close(fig)
@@ -36,7 +36,7 @@ def report(run):
     if final_path.exists():
         final = json.loads(final_path.read_text())
         test = final['test']
-        rows = ['# 第十轮 foundation + offline RL 测试结果', '',
+        rows = ['# Frozen foundation + offline RL 测试结果', '',
                 f'- 选模：{final["selection"]}。',
                 f'- 选定模型：`{final["selected"]}`，副本 `best_spl.pt`。',
                 f'- 测试集：`{test["split"]}`，随机种子 {test["seed"]}，{test["episodes"]} 个 episode。',

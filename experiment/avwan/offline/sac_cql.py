@@ -1,7 +1,7 @@
 """Discrete SAC-CQL with independent actor/twin-critic LSTMs.
 
 Reference: SoundSpaces AVNav's yz/net/sac_cql/trainer/SAC_CQL.py.
-Adaptations: 81 masked waypoints, stored SMDP discounts, consistent recurrent
+Adaptations: 81 masked waypoints, configurable training gamma, consistent recurrent
 histories, target recurrent critics, and a positive mask-aware entropy target.
 """
 import copy
@@ -79,7 +79,7 @@ class RecurrentSACCQL(nn.Module):
             target1, _ = self.target_q1(states)
             target2, _ = self.target_q2(states)
             values = (probs.detach() * (torch.minimum(target1, target2) - alpha * log_probs.detach())).sum(-1)
-            td_target = batch['reward'] + batch['discount'] * values[:, 1:]
+            td_target = batch['reward'] + self.config['gamma'] * values[:, 1:]
         q1, _ = self.q1(states[:, :-1])
         q2, _ = self.q2(states[:, :-1])
         action = batch['action']

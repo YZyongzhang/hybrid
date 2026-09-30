@@ -93,17 +93,11 @@ COLLECT:
   OPEN: true
   TYPE: greedy
   RESUME: true  # Skip scenes that already have collected data in TO_PATH.
-  TO_PATH: "/data/Getuanhui/avwan_multiple_greedy_train"
+  TO_PATH: "/data/Getuanhui/avwan_multiple_greedy_val_heard"
 
 
 
-DATASET:
-  TYPE: "AudioNav"
-  SPLIT: "val_telephone"
-  CONTENT_SCENES: ["*"]
-  VERSION: "v1"
-  SCENES_DIR: "data/scene_datasets/mp3d"
-  DATA_PATH: "data/datasets/audionav/mp3d/{version}/{split}/{split}.json.gz"
+
 
 # TRAIN.OPEN=true selects training directly in run_avwan.py, before collection.
 # Relative DATA/OUTPUT/RESUME paths are rooted at experiment/avwan.
@@ -145,3 +139,12 @@ TRAIN:
   MAX_BATCHES: 0
   TENSORBOARD: true
   SAVE_TOP_K: 3
+
+
+DATASET:
+  TYPE: "AudioNav"
+  SPLIT: "val_multiple"
+  CONTENT_SCENES: ["*"]
+  VERSION: "v1"
+  SCENES_DIR: "data/scene_datasets/mp3d"
+  DATA_PATH: "data/datasets/audionav/mp3d/{version}/{split}/{split}.json.gz"

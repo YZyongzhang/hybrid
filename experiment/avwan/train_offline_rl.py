@@ -34,6 +34,8 @@ def validate(config):
     if config['cpu_threads'] < 1 or config['features']['max_episodes'] < 0:
         raise ValueError('Invalid CPU thread count or max_episodes')
     cfg = config['training']
+    if not 0 <= cfg['gamma'] <= 1:
+        raise ValueError('training.gamma must be between 0 and 1')
     if any(cfg[k] <= 0 for k in ('learning_rate', 'initial_alpha', 'cql_temperature', 'grad_clip')):
         raise ValueError('Learning rate, alpha, temperature and clipping must be positive')
     if cfg['cql_weight'] < 0 or not 0 < cfg['tau'] <= 1 or not 0 <= cfg['entropy_ratio'] <= 1:
