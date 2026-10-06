@@ -77,7 +77,7 @@ def load_foundation(checkpoint, device):
     state = torch.load(checkpoint, map_location='cpu', weights_only=False)
     weights = state.get('model', state)
     actions = weights['mask_encoder.0.weight'].shape[1]
-    model = Network(action_count=actions).to(device)
+    model = Network(action_count=actions, **state.get('config', {}).get('network', {})).to(device)
     model.load_state_dict(weights, strict=True)
     model.requires_grad_(False)
     model.eval()

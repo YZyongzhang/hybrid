@@ -18,6 +18,8 @@ class OfflinePolicy:
     def reset(self):
         self.previous = None
         self.hidden = None
+        if getattr(self, 'action_selector', None):
+            self.action_selector.reset()
 
     @torch.inference_mode()
     def act(self, obs, action_mask):
@@ -28,8 +30,13 @@ class OfflinePolicy:
                   obs['gm'], obs['am'], np.asarray(action_mask, dtype=bool)]
         tensors = [torch.as_tensor(np.ascontiguousarray(value), device=self.device).unsqueeze(0) for value in values]
         features = self.foundation.embedding_forward(*tensors)
-        action, self.hidden = self.actor.act(features, tensors[-1], self.hidden, deterministic=True)
-        action = int(action.item())
+        selector = getattr(self, 'action_selector', None)
+        if selector:
+            logits, self.hidden = self.actor.actor(features.unsqueeze(1), self.hidden)
+            action = selector(obs, action_mask, logits[0, 0])
+        else:
+            action, self.hidden = self.actor.act(features, tensors[-1], self.hidden, deterministic=True)
+            action = int(action.item())
         if not action_mask[action]:
             raise RuntimeError('SAC actor selected an invalid waypoint')
         self.previous = {key: np.asarray(obs[key]).copy() for key in ('rgb', 'depth')}

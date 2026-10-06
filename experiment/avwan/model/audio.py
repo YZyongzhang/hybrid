@@ -25,8 +25,11 @@ def layer_init(module):
                 nn.init.zeros_(layer.bias)
 
 class AudioCRNN(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, normalization='standard') -> None:
         super().__init__()
+        if normalization not in ('standard', 'binaural_whiten', 'binaural_ratio'):
+            raise ValueError(f'Unknown audio normalization: {normalization}')
+        self.normalization = normalization
         self._number_input_audio = 2
         cnn_dimensions = np.array(
             (65,26), dtype=np.int32
@@ -91,7 +94,35 @@ class AudioCRNN(nn.Module):
 
     def encoder_forward(self, audio):
         audio = audio.float()
-        dims = (1, 2, 3)
-        audio = (audio - audio.mean(dims, keepdim=True)) / (audio.std(dims, keepdim=True, unbiased=False) + 1e-6)
+        if self.normalization == 'binaural_whiten':
+            audio = binaural_whiten(audio)
+        if self.normalization == 'binaural_ratio':
+            # A fixed scale preserves the strength of interaural differences.
+            # Per-sample standardization here would erase that spatial cue.
+            audio = instantaneous_binaural_ratio(audio) * 5.
+        else:
+            dims = (1, 2, 3)
+            audio = (audio - audio.mean(dims, keepdim=True)) / (audio.std(dims, keepdim=True, unbiased=False) + 1e-6)
         x = self.cnn(audio.permute(0, 3, 1, 2).contiguous())
         return self.attn(x, x, x)
+
+
+def binaural_whiten(audio):
+    """Remove shared source spectrum/gain, preserving left/right differences.
+
+    Input is SoundSpaces log1p magnitude. Normalize both ears by the SAME
+    time/ear-average magnitude at each frequency; independent ear normalization
+    would erase localization cues. The relative floor suppresses silent bands.
+    """
+    magnitude = torch.expm1(audio.float().clamp(0, 20))
+    reference = magnitude.mean((2, 3), keepdim=True)
+    floor = reference.mean(1, keepdim=True) * .03
+    return torch.log1p(magnitude / reference.clamp_min(floor).clamp_min(1e-12))
+
+
+def instantaneous_binaural_ratio(audio):
+    """Cancel common source coloration independently at every time/frequency bin."""
+    magnitude = torch.expm1(audio.float().clamp(0,20))
+    left, right = magnitude.unbind(-1)
+    contrast = (left-right)/(left+right).clamp_min(torch.finfo(torch.float32).tiny)
+    return torch.stack((contrast,-contrast),dim=-1)

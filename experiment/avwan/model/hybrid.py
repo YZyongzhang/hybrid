@@ -110,13 +110,16 @@ class Finnal_model(nn.Module):
 
 class Network(nn.Module):
     """User hybrid architecture with egocentric map and valid-waypoint tokens."""
-    def __init__(self, action_count=81):
+    def __init__(self, action_count=81, audio_normalization='standard', map_normalization='absolute', spatial_detail=False):
         super().__init__()
+        if map_normalization not in ('absolute', 'relative'):
+            raise ValueError(f'Unknown map normalization: {map_normalization}')
+        self.map_normalization = map_normalization
         self.action_count = action_count
         self.visual_encoder = VisualEncoder()
         self.add_position = PositionalEcoder()
         self.visual_transformer_encoder = Encoder(128, 64, 4, 3, .2)
-        self.audio_encoder = AudioCRNN()
+        self.audio_encoder = AudioCRNN(audio_normalization)
         self.geometric_encoder = MapEncoder(2, output_grid=4, large=True)
         self.acoustic_encoder = MapEncoder(1, output_grid=2)
         self.mask_encoder = nn.Sequential(nn.Linear(action_count, 128), nn.ReLU())
@@ -124,6 +127,16 @@ class Network(nn.Module):
         self.vaencoder = Encoder(128, 64, 4, 3, .2)
         # 1 audio + 16 visual + 16 geometry + 4 acoustic + 1 mask token.
         self.final = Finnal_model(input_dim=38 * 128, hidden_dim=256, output_dim=action_count)
+        self.detail_encoder = None
+        if spatial_detail:
+            if action_count != 81:
+                raise ValueError('Spatial detail branch requires the 9x9 waypoint grid')
+            # Retain every 1m acoustic cell and local 1m geometry cell rather
+            # than representing the whole acoustic map with only four tokens.
+            self.detail_encoder = nn.Sequential(nn.Linear(400 + 162 + 81 + 128 + 6, 256),
+                                                nn.LayerNorm(256), nn.ReLU(), nn.Linear(256, 256))
+            nn.init.zeros_(self.detail_encoder[-1].weight)
+            nn.init.zeros_(self.detail_encoder[-1].bias)
 
     def _encode(self, audio, rgb, depth, gm, am, action_mask):
         if audio.ndim == 3:
@@ -140,12 +153,37 @@ class Network(nn.Module):
         visual = self.visual_transformer_encoder(visual + self.add_position(visual))
         geometry = self.geometric_encoder(gm.float())
         # Dynamic range compression preserves zero and the sign of acoustic values.
-        acoustic = self.acoustic_encoder(am.float().sign() * torch.log1p(am.float().abs()))
+        am = am.float()
+        if self.map_normalization == 'relative':
+            # Preserve visited-cell energy ratios and zero/unobserved cells.
+            am = 10. * am / am.abs().amax((1, 2, 3), keepdim=True).clamp_min(1e-12)
+        acoustic = self.acoustic_encoder(am.sign() * torch.log1p(am.abs()))
         valid = self.mask_encoder(action_mask.float()).unsqueeze(1)
         groups = (audio_token, visual, geometry, acoustic, valid)
         tokens = torch.cat([group + self.modality_embedding[i] for i, group in enumerate(groups)], dim=1)
         fused = self.vaencoder(tokens + self.add_position(tokens))
-        return self.final.fc1(fused), audio_token
+        embedding = self.final.fc1(fused)
+        if self.detail_encoder is not None:
+            local = gm.float().permute(0, 3, 1, 2)[:, :, 155:245, 155:245]
+            local = nn.functional.avg_pool2d(local, 10).flatten(1)
+            energy = am.clamp_min(0).flatten(1)
+            relative = energy / energy.amax(1, keepdim=True).clamp_min(1e-12)
+            center = relative[:, 210]  # egocentric acoustic map center=(10,10)
+            others = relative.clone();others[:, 210] = 0
+            known = (energy > 0).sum(1).float()
+            peak = relative.argmax(1)
+            peak_distance = (((peak//20-10).float().square() + (peak%20-10).float().square()).sqrt()/14.2)
+            peak_distance = peak_distance * (known > 0)
+            neighborhood = relative.reshape(-1,20,20)[:,9:12,9:12]
+            neighbor_count = (neighborhood > 0).sum((1,2)).float()-(center > 0).float()
+            neighbor_mean = (neighborhood.sum((1,2))-center)/neighbor_count.clamp_min(1)
+            statistics = torch.stack((center, torch.log1p(center/others.amax(1).clamp_min(.01)),
+                                      torch.log1p(known)/6., relative.sum(1)/known.clamp_min(1),
+                                      peak_distance, torch.log1p(center/neighbor_mean.clamp_min(.01))), dim=1)
+            detail = torch.cat((torch.log1p(am.clamp_min(0)).flatten(1), local,
+                                action_mask.float(), audio_token.squeeze(1), statistics), dim=1)
+            embedding = embedding + self.detail_encoder(detail)
+        return embedding, audio_token
 
     def forward_joint(self, audio, rgb, depth, gm, am, action_mask):
         embedding, audio_token = self._encode(audio, rgb, depth, gm, am, action_mask)

@@ -52,6 +52,7 @@ def collate_episodes(episodes):
                  action_mask=torch.ones(batch_size, length + 1, actions, dtype=torch.bool),
                  action=torch.zeros(batch_size, length, dtype=torch.long),
                  reward=torch.zeros(batch_size, length), discount=torch.zeros(batch_size, length),
+                 bc_mask=torch.zeros(batch_size, length, dtype=torch.bool),
                  valid=torch.zeros(batch_size, length, dtype=torch.bool))
     for i, episode in enumerate(episodes):
         n = len(episode['action'])
@@ -59,5 +60,9 @@ def collate_episodes(episodes):
             batch[key][i, :n + 1] = episode[key]
         for key in ('action', 'reward', 'discount'):
             batch[key][i, :n] = episode[key]
+        bc_mask = episode.get('bc_mask', torch.ones(n, dtype=torch.bool))
+        if bc_mask.shape != (n,) or bc_mask.dtype != torch.bool:
+            raise ValueError('BC mask must be a boolean value per real transition')
+        batch['bc_mask'][i, :n] = bc_mask
         batch['valid'][i, :n] = True
     return batch

@@ -57,6 +57,38 @@ class OfflineTests(unittest.TestCase):
         self.cfg = self.config['training']
         self.cfg.update(hidden_dim=8, batch_size=2, epochs=2, tensorboard=False)
 
+    def test_pure_bc_actor_is_independent_of_critic_values(self):
+        cfg = dict(self.cfg, actor_rl_weight=0., bc_weight=1.)
+        model = RecurrentSACCQL(4, 3, cfg)
+        batch = collate_episodes([small_episode(4)])
+        first = model.losses(batch)
+        torch.testing.assert_close(first['actor_loss'], first['policy_nll'])
+        grads = torch.autograd.grad(first['actor_loss'], tuple(model.actor.parameters()))
+        with torch.no_grad():
+            for critic in (model.q1, model.q2):
+                for p in critic.parameters():
+                    p.mul_(20.)
+        second = model.losses(batch)
+        changed = torch.autograd.grad(second['actor_loss'], tuple(model.actor.parameters()))
+        for a, b in zip(grads, changed):
+            torch.testing.assert_close(a, b)
+
+    def test_corrective_labels_leave_behavior_actions_and_rewards_untouched(self):
+        from experiment.avwan.train_corrective_memory import actor_bc_loss, relabel_for_bc
+        original = small_episode(4)
+        corrected = relabel_for_bc(original, torch.zeros(4,dtype=torch.long))
+        self.assertTrue((original['action']==2).all())
+        self.assertTrue((corrected['action']==0).all())
+        model = RecurrentSACCQL(4,3,self.cfg)
+        batch = collate_episodes([corrected])
+        loss,_ = actor_bc_loss(model,batch)
+        batch['reward'].fill_(1e20);batch['discount'].fill_(0.)
+        changed,_ = actor_bc_loss(model,batch)
+        torch.testing.assert_close(loss,changed)
+        loss.backward()
+        self.assertTrue(all(p.grad is None for p in model.q1.parameters()))
+        self.assertTrue(any(p.grad is not None for p in model.actor.parameters()))
+
     def test_masks_cql_and_temperature_gradient(self):
         logits = torch.tensor([[1., 10000., 2.]], requires_grad=True)
         mask = torch.tensor([[True, False, True]])
@@ -124,6 +156,47 @@ class OfflineTests(unittest.TestCase):
         self.assertTrue(all(p.grad is None for p in model.target_q1.parameters()))
         action, _ = model.act(episode['features'][:1], episode['action_mask'][:1])
         self.assertNotEqual(int(action), 1)
+
+    def test_optional_terminal_mask_preserves_timeout_bootstrap(self):
+        self.cfg.update(gamma=.7, terminal_mask=True)
+        model = RecurrentSACCQL(4, 3, self.cfg)
+        with torch.no_grad():
+            for network in (model.target_q1, model.target_q2):
+                for parameter in network.parameters():
+                    parameter.zero_()
+                network.head[-1].bias.fill_(2.)
+            for parameter in model.actor.parameters():
+                parameter.zero_()
+        episode = small_episode(2)
+        episode['discount'][:] = torch.tensor([0., .81])
+        batch = collate_episodes([episode])
+        expected = 1. + .5 * .7 * (2. + .1 * np.log(2.))
+        self.assertAlmostEqual(float(model.losses(batch)['td_target']), expected, places=5)
+        batch['discount'].zero_()
+        self.assertAlmostEqual(float(model.losses(batch)['td_target']), 1., places=5)
+
+    def test_bc_regularization_actor_gradient(self):
+        model = RecurrentSACCQL(4, 3, self.cfg)
+        batch = collate_episodes([small_episode(2)])
+        original = model.losses(batch)
+        self.cfg['bc_weight'] = 2.
+        regularized = model.losses(batch)
+        torch.testing.assert_close(regularized['actor_loss'], original['actor_loss'] + 2 * original['policy_nll'])
+        regularized['actor_loss'].backward()
+        self.assertGreater(float(model.actor.lstm.weight_hh_l0.grad.norm()), 0.)
+        self.assertTrue(all(p.grad is None for p in model.q1.parameters()))
+
+    def test_residual_actor_starts_at_frozen_prior(self):
+        self.cfg['foundation_prior'] = True
+        model = RecurrentSACCQL(4, 3, self.cfg)
+        batch = collate_episodes([small_episode(3)])
+        with torch.no_grad():
+            logits, _ = model.actor(batch['features'])
+            torch.testing.assert_close(logits, model.actor.prior(batch['features']))
+        before = deepcopy(model.actor.prior.state_dict())
+        model.update(batch, model.make_optimizers())
+        for key, value in model.actor.prior.state_dict().items():
+            torch.testing.assert_close(value, before[key], rtol=0, atol=0)
 
     def test_frozen_extraction_history_cache_and_resume_training(self):
         with tempfile.TemporaryDirectory() as temporary:

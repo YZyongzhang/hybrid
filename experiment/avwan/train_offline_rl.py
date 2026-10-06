@@ -40,6 +40,13 @@ def validate(config):
         raise ValueError('Learning rate, alpha, temperature and clipping must be positive')
     if cfg['cql_weight'] < 0 or not 0 < cfg['tau'] <= 1 or not 0 <= cfg['entropy_ratio'] <= 1:
         raise ValueError('Invalid SAC-CQL hyperparameters')
+    if cfg.get('bc_weight', 0.) < 0:
+        raise ValueError('training.bc_weight must be nonnegative')
+    if cfg.get('actor_rl_weight', 1.) < 0:
+        raise ValueError('training.actor_rl_weight must be nonnegative')
+    for key in ('terminal_mask', 'foundation_prior'):
+        if key in cfg and not isinstance(cfg[key], bool):
+            raise ValueError(f'training.{key} must be boolean')
 
 
 def main(argv=None):

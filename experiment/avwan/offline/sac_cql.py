@@ -24,6 +24,14 @@ def mean_valid(values, valid):
     return values[valid].mean()
 
 
+def behavior_cloning_loss(log_probs, actions, valid, bc_mask=None):
+    """Exclude known bad behavior labels without changing critic transitions."""
+    nll = -log_probs.gather(-1, actions.unsqueeze(-1)).squeeze(-1)
+    allowed = valid if bc_mask is None else valid & bc_mask.bool()
+    # An all-negative batch must have finite zero BC and zero BC gradients.
+    return nll[allowed].sum() / allowed.sum().clamp_min(1)
+
+
 def conservative_gap(q, actions, mask, temperature):
     taken = q.gather(-1, actions.unsqueeze(-1)).squeeze(-1)
     partition = temperature * torch.logsumexp((q / temperature).masked_fill(~mask, -torch.inf), -1)
@@ -31,15 +39,24 @@ def conservative_gap(q, actions, mask, temperature):
 
 
 class RecurrentHead(nn.Module):
-    def __init__(self, feature_dim, hidden_dim, action_count, layers):
+    def __init__(self, feature_dim, hidden_dim, action_count, layers, foundation_prior=False):
         super().__init__()
         self.lstm = nn.LSTM(feature_dim, hidden_dim, layers, batch_first=True)
         self.head = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
                                   nn.Linear(hidden_dim, action_count))
+        self.prior = None
+        if foundation_prior:
+            self.prior = nn.Sequential(nn.Linear(feature_dim, 128), nn.ReLU(), nn.LayerNorm(128), nn.Linear(128, action_count))
+            self.prior.requires_grad_(False)
+            nn.init.zeros_(self.head[-1].weight)
+            nn.init.zeros_(self.head[-1].bias)
 
     def forward(self, features, hidden=None):
         latent, hidden = self.lstm(features, hidden)
-        return self.head(latent), hidden
+        logits = self.head(latent)
+        if self.prior is not None:
+            logits = self.prior(features) + logits
+        return logits, hidden
 
 
 class RecurrentSACCQL(nn.Module):
@@ -47,7 +64,7 @@ class RecurrentSACCQL(nn.Module):
         super().__init__()
         self.config = config
         args = (feature_dim, config['hidden_dim'], action_count, config['lstm_layers'])
-        self.actor = RecurrentHead(*args)
+        self.actor = RecurrentHead(*args, foundation_prior=config.get('foundation_prior', False))
         self.q1, self.q2 = RecurrentHead(*args), RecurrentHead(*args)
         self.target_q1, self.target_q2 = copy.deepcopy(self.q1), copy.deepcopy(self.q2)
         self.target_q1.requires_grad_(False)
@@ -79,7 +96,15 @@ class RecurrentSACCQL(nn.Module):
             target1, _ = self.target_q1(states)
             target2, _ = self.target_q2(states)
             values = (probs.detach() * (torch.minimum(target1, target2) - alpha * log_probs.detach())).sum(-1)
-            td_target = batch['reward'] + self.config['gamma'] * values[:, 1:]
+            bootstrap = values[:, 1:]
+            if self.config.get('terminal_mask', False):
+                # Cached zero discounts identify true terminals; time limits
+                # retain positive discounts. gamma remains a decision discount.
+                bootstrap = bootstrap * (batch['discount'] > 0)
+            # Historical checkpoints predate training.gamma and used the
+            # collector's SMDP discount (including terminal masking).
+            discount = self.config.get('gamma', batch['discount'])
+            td_target = batch['reward'] + discount * bootstrap
         q1, _ = self.q1(states[:, :-1])
         q2, _ = self.q2(states[:, :-1])
         action = batch['action']
@@ -92,6 +117,10 @@ class RecurrentSACCQL(nn.Module):
         critic_loss = td + self.config['cql_weight'] * cql
         p, lp = probs[:, :-1], log_probs[:, :-1]
         actor_loss = mean_valid((p * (alpha * lp - torch.minimum(q1, q2).detach())).sum(-1), valid)
+        policy_nll = mean_valid(-lp.gather(-1, action.unsqueeze(-1)).squeeze(-1), valid)
+        bc_nll = behavior_cloning_loss(lp, action, valid, batch.get('bc_mask'))
+        actor_loss = (self.config.get('actor_rl_weight', 1.) * actor_loss
+                      + self.config.get('bc_weight', 0.) * bc_nll)
         entropy = -(p * lp).sum(-1)
         target_entropy = self.config['entropy_ratio'] * masks[:, :-1].sum(-1).float().log()
         # If H < target, gradient descent INCREASES alpha.
@@ -100,7 +129,7 @@ class RecurrentSACCQL(nn.Module):
                        alpha_loss=alpha_loss, alpha=alpha, entropy=mean_valid(entropy, valid),
                        target_entropy=mean_valid(target_entropy, valid),
                        action_accuracy=mean_valid((p.argmax(-1) == action).float(), valid),
-                       policy_nll=mean_valid(-lp.gather(-1, action.unsqueeze(-1)).squeeze(-1), valid),
+                       policy_nll=policy_nll, bc_nll=bc_nll,
                        q_data=mean_valid(0.5 * (taken1 + taken2), valid),
                        td_target=mean_valid(td_target, valid))
         return metrics

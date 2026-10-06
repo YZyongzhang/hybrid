@@ -1,5 +1,19 @@
 # Frozen foundation → LSTM SAC-CQL
 
+2026-09-30 的固定 heard/unheard 100 episode 实验见
+`result/2026-09-30-multiple-gamma-study/PROTOCOL.md` 和 `RESULTS.md`。
+入口为 `python -m experiment.avwan.run_gamma_study`，汇总为
+`python -m experiment.avwan.report_gamma_study`。新增可选训练参数：
+
+- `terminal_mask: true`：真正终止不 bootstrap，timeout 保留 bootstrap；`gamma` 仍按决策步使用。
+- `bc_weight: 1.0`：在 SAC actor loss 中加入数据动作的负对数似然正则。
+- `foundation_prior: true`：冻结已有 foundation 动作头，初始化为零的 LSTM 残差修正其 logits。
+
+上述选项默认关闭，原始 checkpoint 的部署行为不变。历史 checkpoint 没有
+`training.gamma` 时，loss 使用其原始缓存 SMDP discount。
+`evaluate --reset-memory` 可仅清空 actor 的历史状态，保留视觉双帧，用于记忆消融。
+`python -m experiment.avwan.audit_offline_memory --help` 提供真实缓存轨迹上的数值检查。
+
 在仓库根目录运行（不需要启动 Habitat 仿真器）：
 
 ```bash

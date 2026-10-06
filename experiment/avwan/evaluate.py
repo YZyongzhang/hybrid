@@ -28,6 +28,8 @@ class LearnedPolicy:
 
     def reset(self):
         self.previous = None
+        if getattr(self, 'action_selector', None):
+            self.action_selector.reset()
 
     @torch.inference_mode()
     def act(self, obs, action_mask):
@@ -37,7 +39,8 @@ class LearnedPolicy:
         values = [obs['spectrogram'], rgb.astype(np.float32) / 255., depth, obs['gm'], obs['am'], action_mask]
         tensors = [torch.as_tensor(np.ascontiguousarray(value), device=self.device).unsqueeze(0) for value in values]
         logits, _ = self.model.forward_joint(*tensors)
-        action = int(logits.argmax(-1).item())
+        selector = getattr(self, 'action_selector', None)
+        action = selector(obs, action_mask, logits[0]) if selector else int(logits.argmax(-1).item())
         self.previous = {key: np.asarray(obs[key]).copy() for key in ('rgb', 'depth')}
         return action
 
@@ -113,10 +116,17 @@ def evaluate(args):
     if foundation_path:
         from experiment.avwan.offline.policy import OfflinePolicy
         policy = OfflinePolicy.from_checkpoint(state, foundation_path, device)
+    elif state['signature'].get('architecture') == 'foundation_probability_ensemble_v1':
+        from .ensemble_policy import FoundationEnsemblePolicy
+        policy = FoundationEnsemblePolicy(state, device)
     else:
-        model = Network(action_count=state['signature']['actions']).to(device)
+        model = Network(action_count=state['signature']['actions'],
+                        **state.get('config', {}).get('network', {})).to(device)
         model.load_state_dict(state['model'])
         policy = LearnedPolicy(model, device)
+    if getattr(args, 'revisit_penalty', 0.):
+        from .revisit_policy import RevisitSelector
+        policy.action_selector = RevisitSelector(args.revisit_penalty)
     config = get_config(args.config, opts=['TASK_CONFIG.DATASET.SPLIT', args.split])
     config.defrost()
     config.TASK_CONFIG.TRAIN.OPEN = False
@@ -138,6 +148,16 @@ def evaluate(args):
                     planned=len(selection), selection_sha256=hashlib.sha256(json.dumps(selection).encode()).hexdigest(),
                     policy='masked_argmax', max_episode_steps=config.TASK_CONFIG.ENVIRONMENT.MAX_EPISODE_STEPS,
                     prediction_interval=config.PREDICTION_INTERVAL)
+    if getattr(args, 'reset_memory', False):
+        if not foundation_path:
+            raise ValueError('--reset-memory requires an offline recurrent policy')
+        metadata['reset_memory_every_step'] = True
+    if getattr(args, 'revisit_penalty', 0.):
+        metadata['revisit_penalty'] = args.revisit_penalty
+    if state['signature'].get('architecture') == 'foundation_probability_ensemble_v1':
+        metadata.update(policy='foundation_probability_ensemble_masked_argmax',
+                        ensemble_weights=state['weights'],
+                        ensemble_members=[m['checkpoint_sha256'] for m in state['members']])
     if foundation_path:
         metadata.update(policy='frozen_foundation_lstm_sac_masked_argmax',
                         foundation_checkpoint=str(Path(foundation_path).resolve()),
@@ -184,6 +204,8 @@ def evaluate(args):
                 row['initial_distance'] = float(info['distance_to_goal'])
                 done = False
                 while not done:
+                    if getattr(args, 'reset_memory', False):
+                        policy.hidden = None
                     action = policy.act(obs, env.action_mask(obs))
                     actions.append(action)
                     obs, reward, done, info = env.step(action)
@@ -193,6 +215,8 @@ def evaluate(args):
             except Exception:
                 row['error'] = traceback.format_exc()
             row.update(primitive_steps=steps, actions=actions, waypoint_steps=len(actions))
+            if getattr(policy, 'action_selector', None):
+                row['revisit_action_changes'] = policy.action_selector.changed
             rows.append(row)
             with index.open('a') as handle:
                 handle.write(json.dumps(row) + '\n')
@@ -226,6 +250,8 @@ def main():
     parser.add_argument('--device', default='cuda:0')
     parser.add_argument('--config')
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--reset-memory', action='store_true', help='Ablate actor memory while retaining visual frame history')
+    parser.add_argument('--revisit-penalty', type=float, default=0., help='Re-rank motion actions on repeated visual observations')
     parser.add_argument('--shards', type=int, default=1)
     parser.add_argument('--shard-index', type=int, default=0)
     parser.add_argument('--max-new-episodes', type=int, default=0,

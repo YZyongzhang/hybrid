@@ -30,6 +30,13 @@ def train(config, manifest, device, resume=None):
     signature = dict(architecture='independent_lstm_discrete_sac_cql_v1', features=manifest['identity'],
                      feature_dim=manifest['feature_dim'], action_count=manifest['action_count'])
     model = RecurrentSACCQL(manifest['feature_dim'], manifest['action_count'], cfg).to(device)
+    if cfg.get('foundation_prior', False) and not resume:
+        from .features import load_foundation, sha256
+        if sha256(Path(config['features']['checkpoint'])) != manifest['identity']['checkpoint_sha256']:
+            raise ValueError('Foundation prior must match cached embeddings')
+        foundation = load_foundation(config['features']['checkpoint'], device)
+        model.actor.prior.load_state_dict(foundation.final.action_head.state_dict())
+        del foundation
     optimizers = model.make_optimizers()
     start_epoch, global_step, best, best_nll = 0, 0, float('inf'), float('inf')
     candidates = {}
