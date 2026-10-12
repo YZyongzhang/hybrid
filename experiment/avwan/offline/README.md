@@ -1,5 +1,19 @@
 # Frozen foundation → LSTM SAC-CQL
 
+## 批量训练参数
+
+修改默认配置 `experiment/avwan/config/offline_rl_batch.example.yaml`。文件里显式列出随机种子、设备、特征提取设置和全部训练参数。所有 `training.*` 参数都在 `grid` 里：单值列表表示固定该参数，多值列表表示扫描候选值。运行：
+
+```bash
+python -m experiment.avwan.train_offline_rl_batch
+```
+
+默认读取 `experiment/avwan/config/offline_rl_batch.example.yaml`；需要切换批量配置时再传 `--config PATH`。
+
+`grid` 按笛卡尔积组合，而不是按位置配对。当前 `gamma` 有 2 个值、`cql_weight` 有 2 个值，其余训练参数各有 1 个值，因此会运行 `2 × 2 × 1 × … = 4` 组：每个 gamma 都分别搭配每个 cql_weight。再给某参数增加 3 个候选值，组数就变成 `4 × 3 = 12`。自动生成的 run 目录名使用发生变化的参数名和值，例如 `gamma-0p7__cql_weight-0p5`。脚本先提取一次冻结特征，再逐组串行训练；每组有独立输出目录、配置和日志。TensorBoard event 文件集中写入 `output_root/tensorboard/<run-name>/`，可用一个 `--logdir output_root/tensorboard` 查看整批实验。若要手动指定几组一一对应的参数组合，使用 `experiments` 命名列出。中断后重跑会复用特征缓存、跳过已完成实验，并从 `latest.pt` 恢复未完成训练。
+
+用 `--dry-run` 查看展开后的参数组合，或用 `--skip-extract` 直接使用已有缓存。批量 YAML 中未填写的设置才从 `base_config` 补齐；其中相对数据、权重和缓存路径以 `experiment/avwan` 为根，`base_config` 相对批量 YAML 文件，`output_root` 相对 `experiment/avwan`。
+
 2026-09-30 的固定 heard/unheard 100 episode 实验见
 `result/2026-09-30-multiple-gamma-study/PROTOCOL.md` 和 `RESULTS.md`。
 入口为 `python -m experiment.avwan.run_gamma_study`，汇总为
@@ -25,7 +39,7 @@
 ## 分阶段与恢复
 
 ```bash
-# 冻结 foundation，提取全部训练及独立验证 episode
+# 冻结 foundation，提取全部训练 episode
 python experiment/avwan/train_offline_rl.py --stage extract
 
 # 只读取已完成的特征缓存训练，不再读取原始观测或运行 foundation
@@ -36,7 +50,7 @@ python experiment/avwan/train_offline_rl.py --stage train --epochs 60 \
   --resume experiment/avwan/runs/telephone_epoch010_offline_lstm_saccql_v1/latest.pt
 ```
 
-可以通过 `--checkpoint`、`--source`、`--val-source`、`--cache`、`--output`、`--device`、`--batch-size`、`--extract-batch-size` 覆盖设置。`--max-episodes N` 仅用于小规模诊断，每个 split 最多 N 个 episode，必须指定不同缓存目录。已有训练目录须显式恢复，防止覆盖结果。
+可以通过 `--checkpoint`、`--source`、`--cache`、`--output`、`--device`、`--batch-size`、`--extract-batch-size` 覆盖设置。`--max-episodes N` 仅用于小规模诊断。已有训练目录须显式恢复，防止覆盖结果。
 
 提取中断后重新运行相同命令即可续跑。缓存身份绑定 checkpoint SHA-256、源数据快照和预处理版本；改变权重或数据后需要新缓存目录。训练阶段以缓存内的 checkpoint 身份为准，不要求原始 checkpoint 仍在线。
 
@@ -44,7 +58,7 @@ python experiment/avwan/train_offline_rl.py --stage train --epochs 60 \
 
 默认权重：`runs/telephone_train_val_20260925/epoch_010.pt`。支持纯 `state_dict` 或带 `model` 的 foundation 训练 checkpoint。整个 foundation 使用 `requires_grad_(False)`、`eval()` 和 `inference_mode()`，以 float32 提取融合层的 256 维特征。
 
-默认缓存：`data_cache/telephone_epoch010_frozen_rl_v1/`。`manifest.json` 是完成标记，`sources.json` 保存源文件清单，每个 `train/*.npz`、`val/*.npz` 文件保存一个 episode：
+默认缓存：`data_cache/multiple_train_only_rl_v1/`。`manifest.json` 是完成标记，`sources.json` 保存源文件清单；每个 `train/*.npz` 文件保存一个 episode：
 
 | 字段 | 形状 | 含义 |
 | --- | --- | --- |
@@ -61,7 +75,7 @@ python experiment/avwan/train_offline_rl.py --stage train --epochs 60 \
 ## 训练方式
 
 - Actor、Q1、Q2 各自有可训练 LSTM；两个目标 critic 包含独立的目标 LSTM，并整体 Polyak 更新。
-- 每个 batch 包含完整 episode，右侧 padding 并屏蔽 padding 的全部 loss。每个训练 epoch 遍历全部训练 transition，验证遍历全部独立验证 transition。
+- 每个 batch 包含完整 episode，右侧 padding 并屏蔽 padding 的全部 loss。每个训练 epoch 遍历全部训练 transition，不单独运行离线验证集。
 - LSTM 从真实 episode 起点零状态开始。下一状态价值从同一次 `[s0, …, sT]` 前向的后移位置取得，保留正确历史。
 - 离散 SAC 的目标为 `reward + discount * sum(pi * (min(target_Q1, target_Q2) - alpha * log(pi)))`。不再次乘 gamma；超时截断仍 bootstrap。
 - CQL 对每个 critic 使用 `temperature * logsumexp(Q / temperature) - Q(data_action)`，仅对合法动作求和。
@@ -71,18 +85,17 @@ python experiment/avwan/train_offline_rl.py --stage train --epochs 60 \
 
 ## 输出与使用
 
-默认输出：`runs/telephone_epoch010_offline_lstm_saccql_v1/`。
+默认输出：`runs/multiple_offline_lstm_saccql/`。
 
 - `latest.pt`：最后完成轮次的全部训练状态。
-- `best.pt`：独立验证集 critic loss 最低的 checkpoint。
-- `best_policy.pt`：验证策略 NLL 最低的 checkpoint。
-- `top_checkpoints.json`：上述两份模型和最终轮次组成的闭环验证候选。
-- `best_spl.pt`：运行下述闭环选模命令后生成，按验证 SPL 选定。
+- `epoch_001.pt` 等：每轮一个部署用 checkpoint，不含 optimizer/RNG 状态。
+- `top_checkpoints.json`：列出已保存的 epoch checkpoint，供可选的闭环评估命令读取。
+- `best_spl.pt`：仅在运行下述闭环评估后生成，按导航验证集 SPL 选定；训练本身不使用验证数据选 checkpoint。
 - `steps.jsonl`（每次更新）、`metrics.jsonl`（每轮）、`tensorboard/`：TD/CQL/actor loss、熵、alpha、数据动作 Q 值及动作一致率。
 - `config.json`、`dataset.json`：运行配置及数据来源。
 - `completed.json`：目标总轮数完成标记。
 
-离线 critic loss 和动作一致率不能代替闭环 Success/SPL；`best.pt` 仅表示上述离线选择标准。
+训练日志中的 critic loss 和动作一致率不能代替闭环 Success/SPL。训练结束时 `latest.pt` 就是最终 checkpoint。
 
 完成下述闭环选模后，载入选定的 policy（示例导入不触发顶层 `experiment` 的仿真环境导入）：
 
@@ -122,7 +135,7 @@ python -m experiment.avwan.evaluate_candidates \
   --test-max-episodes 100 --seed 20260925
 ```
 
-先对候选 checkpoint 在独立的 100 条验证轨迹上比较 SPL。按验证 SPL、验证成功率、离线 critic loss 依次打破平局，选择完成后再对固定随机种子抽出的 100 条 `test_telephone` 轨迹评估。选择清单、逐 episode SPL、checkpoint/foundation SHA-256 均保存在 `rollouts/`；测试结果不参与选模。每 25 个 episode 或达到内存阈值重启仿真进程，依据已保存清单续跑。
+训练不需要离线验证数据。可选地，下面的闭环评估会在独立的导航验证 split 上测量各 epoch checkpoint 的 SPL/成功率，选定后再评估固定随机种子抽取的 `test_telephone` 轨迹；测试结果不参与选模。选择清单、逐 episode SPL、checkpoint/foundation SHA-256 均保存在 `rollouts/`；每 25 个 episode 或达到内存阈值重启仿真进程，依据已保存清单续跑。
 
 SAC actor 每个 episode 重置 LSTM hidden state 和双帧视觉历史，foundation 始终冻结；部署时校验 foundation 与训练缓存的 SHA-256 完全一致。
 

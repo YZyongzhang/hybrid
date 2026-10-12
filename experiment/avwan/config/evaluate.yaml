@@ -1,0 +1,21 @@
+# Evaluation defaults for `python experiment/avwan/evaluate.py`.
+# Relative paths are resolved from the repository root.
+checkpoint: experiment/avwan/runs/multiple_train_val_20261006/best.pt
+foundation_checkpoint: null  # Set this for an offline recurrent SAC checkpoint.
+output: experiment/avwan/runs/evaluate_multiple_test
+split: test_multiple
+max_episodes: 0  # 0 evaluates every episode in the selected split.
+seed: 20260925
+device: cuda:0
+
+# Optional evaluation controls.
+selection_source: null
+config: null  # Optional Habitat environment YAML override.
+resume: false
+reset_memory: false
+revisit_penalty: 0.0
+shards: 1
+shard_index: 0
+max_new_episodes: 0
+max_rss_mb: 0
+profile: null

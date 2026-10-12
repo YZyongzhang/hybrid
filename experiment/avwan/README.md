@@ -1,12 +1,19 @@
 # AVWAN Foundation Model 训练
 
-Foundation 完成后，使用 [冻结特征与 LSTM SAC-CQL pipeline](offline/README.md) 进行后续 offline RL：
+Foundation 完成后，可通过 `run_avwan.py` 配置并启动 refined offline RL。当前
+`audiogoal.yaml` 默认 `TRAIN.MODE: offline_rl`；foundation、parent、数据源、缓存和
+训练参数都在 `TRAIN.OFFLINE_RL` 下。
 
 ```bash
-python experiment/avwan/train_offline_rl.py
+python run_avwan.py
 ```
 
-默认先提取所有训练/验证 episode 的冻结特征，再训练 30 epoch；配置见 `config/offline_rl.yaml`。
+此流程会提取三组冻结特征，按配置训练 SAC-CQL actor，然后执行数据审计和 heard/unheard
+验证。若要恢复 foundation 监督训练，把 `TRAIN.MODE` 改为 `foundation`。普通 SAC-CQL
+基线仍可直接运行 `python experiment/avwan/train_offline_rl.py`，参数见 `config/offline_rl.yaml`。
+refined 配方的 `GAMMA`、`BC_WEIGHT`、`CQL_WEIGHT`、熵参数、学习率、target 更新率、
+梯度裁剪、终止 mask、foundation prior、batch 和失败 STOP penalty 都可在
+`TRAIN.OFFLINE_RL.TRAINING` 中调整。`HIDDEN_DIM`、`LSTM_LAYERS` 必须与 `PARENT` actor 一致。
 
 训练使用 `model/hybrid.py` 中的 `Network`，在用户更新的视听 Transformer 架构上，
 加入 AVWAN 几何地图、声学地图和 waypoint 可行性信息。
@@ -14,14 +21,19 @@ Foundation 训练配置统一在 `config/audiogoal.yaml` 的 **TRAIN** 节点。
 
 ## 从 run_avwan.py 开始训练
 
-修改 `experiment/avwan/config/audiogoal.yaml`：
+训练模式和参数配置在 `experiment/avwan/config/audiogoal.yaml`：
 
 ```yaml
 TRAIN:
   OPEN: true
-  STAGE: all
-  RESUME: ''
-  # 其余 DATA、EPOCHS、BATCH_SIZE 等配置保留文件中已有值
+  MODE: offline_rl
+  FOUNDATION:
+    STAGE: all
+    # foundation 专属 DATA、OUTPUT、EPOCHS 等配置
+  OFFLINE_RL:
+    STAGE: all
+    FOUNDATION: experiment/avwan/runs/every_scene_1000_10_12/best.pt
+    # SOURCES、CACHES、RUN、EXTRACTION、TRAINING、VALIDATION 也在此节点下
 ```
 
 在项目根目录执行：
@@ -31,16 +43,22 @@ conda activate ss
 python run_avwan.py
 ```
 
-- `TRAIN.OPEN: true`：直接进入训练流程，优先于 COLLECT，不创建仿真环境或加载仿真 episode。
-- `TRAIN.OPEN: false`：按照 `COLLECT.OPEN` 执行原有采集流程。
-- `TRAIN.STAGE: all`：首次转换原始采集数据，然后训练；完整缓存可直接复用。
-- `TRAIN.STAGE: prepare`：只转换缓存。
-- `TRAIN.STAGE: train`：要求缓存已完成，再训练。
+- `TEST.OPEN: true`：进入独立测试流程，优先于 TRAIN 和 COLLECT。测试 checkpoint、foundation、数据集及运行参数统一配置在根级 `TEST` 节点。
+- `TRAIN.OPEN: true`：当 `TEST.OPEN` 为 false 时进入训练流程，不创建仿真环境或加载仿真 episode。
+- `TRAIN.OPEN: false` 且 `TEST.OPEN: false`：按照 `COLLECT.OPEN` 执行采集流程。
+- `TRAIN.MODE: offline_rl`：运行 `TRAIN.OFFLINE_RL` 中的特征提取、offline RL、审计和验证。
+- `TRAIN.MODE: foundation`：运行 `TRAIN.FOUNDATION` 中的监督式 foundation 训练；此模式的 `TRAIN.FOUNDATION.STAGE` 可设为 `all`、`prepare` 或 `train`。
+- `TRAIN.OFFLINE_RL.STAGE`：可设为 `all`、`extract`、`train`、`audit` 或 `validate`，便于中断后单独续跑某一阶段。
 
-当前实验已将 `TRAIN.OPEN` 设为 true。已有结果目录需要通过 RESUME 续训，或更换 OUTPUT。
-`TRAIN.DATA.SOURCE` 明确指定训练采集目录，与用于采集的 `DATASET.SPLIT`、
-`COLLECT.TO_PATH` 独立。例如采集 val_telephone 时，训练源仍可保持 telephone train。
-原来的独立 `config/train.yaml` 已移除。
+完整测试集评估由根级 `TEST` 配置控制，默认评估 `test_multiple` 和 `test_multiple_unheard`，每个 split 覆盖其全部 1,000 个 episode。测试环境直接读取 `BASE_TASK_CONFIG_PATH` 指向的 `audiogoal.yaml`；测试专属的 `PREDICTION_INTERVAL` 等参数在根级 `TEST` 中配置。将 `TEST.OPEN` 设为 `true` 并执行 `python run_avwan.py`，会只启动测试，不会进入训练或采集：
+
+```bash
+python run_avwan.py
+```
+
+结果写入 `TEST.OUTPUT/full_test/`，包括每个 split 的 SPL、成功率和汇总报告。
+
+`TRAIN.OFFLINE_RL` 中的相对路径以仓库根目录为基准。提取完成的缓存会自动复用；训练目标目录已有未完成 checkpoint 时会从中续训。
 
 若需要通过单独的实验覆盖文件启动，使用 `TASK_CONFIG.TRAIN` 层级：
 
@@ -48,8 +66,10 @@ python run_avwan.py
 TASK_CONFIG:
   TRAIN:
     OPEN: true
-    EPOCHS: 10
-    OUTPUT: runs/my_hybrid
+    MODE: offline_rl
+    OFFLINE_RL:
+      STAGE: all
+      # 可在这里覆盖 OFFLINE_RL 配置
 ```
 
 ```bash
@@ -102,7 +122,7 @@ loss = ACTION_LOSS_WEIGHT × waypoint_cross_entropy
 默认 `SHARD_SIZE: 512`、`WORKERS: 4`、`PREFETCH_FACTOR: 2`、`BATCH_SIZE: 64`。
 缓存建议放本地 SSD。日志记录 `samples_per_second` 和 `data_wait_seconds`，
 应以初始化后的完整 epoch 评估吞吐。
-设置 `TRAIN.DATA.VAL_SOURCE` 时，全部 SOURCE 用于训练，VAL_SOURCE 独立用于验证，检查 episode 不重叠。
+设置 `TRAIN.FOUNDATION.DATA.VAL_SOURCE` 时，全部 SOURCE 用于训练，VAL_SOURCE 独立用于验证，检查 episode 不重叠。
 VAL_SOURCE 为空时才按场景留出 10% 验证组。
 
 缓存 v3 包含 gm/am，默认目录为 `data_cache/telephone_foundation_spatial_v3`。
@@ -112,7 +132,7 @@ VAL_SOURCE 为空时才按场景留出 10% 验证组。
 
 ## 配置、结果与续训
 
-`TRAIN.DATA` 管理 SOURCE、VAL_SOURCE、CACHE、INPUTS、SHARD_SIZE、CONVERT_WORKERS、
+`TRAIN.FOUNDATION.DATA` 管理 SOURCE、VAL_SOURCE、CACHE、INPUTS、SHARD_SIZE、CONVERT_WORKERS、
 VAL_FRACTION、SPLIT_BY、MAX_EPISODES；其他训练参数直接位于 TRAIN 中。
 其中 INPUTS 为 `[rgb, depth, spectrogram, gm, am]`。
 所有相对 SOURCE/CACHE/OUTPUT/RESUME 路径均基于 `experiment/avwan`。
@@ -168,8 +188,17 @@ python experiment/avwan/train.py --max-episodes 256 \
 
 ## TensorBoard 与闭环导航评估
 
-`TRAIN.TENSORBOARD: true` 将训练/验证的总 loss、动作 loss、方向 loss、准确率和吞吐
-记录到 `TRAIN.OUTPUT/tensorboard/`。例如：
+单独评估时，先在 `config/evaluate.yaml` 设置 checkpoint、数据 split 和输出目录，然后直接运行：
+
+```bash
+python experiment/avwan/evaluate.py
+```
+
+离线 recurrent SAC 策略还需在该 YAML 中设置 `foundation_checkpoint`。默认参数见
+`experiment/avwan/config/evaluate.yaml`；必要时也可以用命令行参数临时覆盖。
+
+`TRAIN.FOUNDATION.TENSORBOARD: true` 将训练/验证的总 loss、动作 loss、方向 loss、准确率和吞吐
+记录到 `TRAIN.FOUNDATION.OUTPUT/tensorboard/`。例如：
 
 ```bash
 tensorboard --logdir experiment/avwan/runs/telephone_train_val_20260925/tensorboard

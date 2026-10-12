@@ -1,4 +1,4 @@
-"""Launch AVWAN training (TRAIN.OPEN) or collection from audiogoal.yaml."""
+"""Launch AVWAN testing, training, or collection from audiogoal.yaml."""
 from experiment.avwan.run import main
 
 if __name__ == '__main__':

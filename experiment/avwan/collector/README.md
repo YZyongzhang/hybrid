@@ -27,7 +27,7 @@ python run_avwan.py --config experiment/avwan/config/default.yaml
 
 ## 配置与输出
 
-- `COLLECT.TYPE`：`greedy` 或 `avwan_greedy`，使用 BFS waypoint 专家。
+- `COLLECT.TYPE`：`greedy` 或 `avwan_greedy` 使用 BFS waypoint 专家；`diverse`、`deverse` 或 `avwan_diverse` 使用 `DeverseCollect`，按 episode 混合 BFS 专家、轻度探索和较强探索。
 - `COLLECT.TO_PATH`：保存目录；为空时使用 `OUTPUT_DIR`。
 - `COLLECT.OPEN`：是否采集。
 - `COLLECT.SUCCESS_ONLY`：默认 false，保留失败或超时的有效轨迹。
@@ -69,6 +69,12 @@ for t in data['transitions']:
 waypoint 动作、SMDP 奖励、底层动作和终止标记，另存专家决策、waypoint 到达情况等。
 默认动作空间为 81 个 waypoint，40 为 STOP。完整观测中的目标角度及元数据中的
 声源坐标是目标真值，训练时应明确选择模型输入。只加载可信来源的 pickle。
+
+`DeverseCollect` 的探索动作始终从当前 `action_mask` 的有效 waypoint 中选取，
+并按历史动作频数降低重复动作的采样权重；每个 episode 记录 `collection_mode`、
+`exploration_probability` 和逐步的 `behavior_policy` / `expert_action`。随机 STOP
+以低概率提供提前停止样本，正常专家 STOP 仍保留。输出继续包含 offline RL 所需的
+完整 SMDP transition，不会合成 reward、next observation 或 terminal/timeout 标记。
 
 任务终止时折扣为 0；超时或专家不可达的采集截断保留 bootstrap 折扣。
 遍历环境已加载的 episode，不保证每个 episode 都能成功到达声源。

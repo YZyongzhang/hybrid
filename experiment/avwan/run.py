@@ -1,4 +1,4 @@
-"""Run AVWAN training or collection from audiogoal.yaml switches."""
+"""Run AVWAN testing, foundation training, offline RL, or collection from audiogoal.yaml."""
 import argparse
 import os
 from pathlib import Path
@@ -8,10 +8,34 @@ from experiment.avwan.collector import COLLECTER
 
 
 def run(config):
+    if config.TASK_CONFIG.TEST.OPEN:
+        from .train_offline_rl_reproduction import run_module
+        test = config.TASK_CONFIG.TEST
+        run_module(
+            "experiment.avwan.reproduce_heard_unheard", "evaluate",
+            "--output", test.OUTPUT, "--checkpoint", test.CHECKPOINT,
+            "--foundation", test.FOUNDATION,
+            "--device", test.DEVICE, "--splits", *test.SPLITS,
+            "--shards", test.SHARDS,
+            "--episodes-per-process", test.EPISODES_PER_PROCESS,
+            "--eval-seed", test.EVAL_SEED,
+            "--prediction-interval", test.PREDICTION_INTERVAL,
+            "--max-rss-mb", test.MAX_RSS_MB,
+        )
+        return 0
     if config.TASK_CONFIG.TRAIN.OPEN:
-        from .train import run_training, training_config
         node = config.TASK_CONFIG.TRAIN
-        run_training(training_config(node), stage=node.STAGE, resume=node.RESUME)
+        mode = str(node.MODE).lower()
+        if mode == 'offline_rl':
+            from .train_offline_rl_reproduction import run_from_node
+            run_from_node(node.OFFLINE_RL)
+        elif mode == 'foundation':
+            from .train import run_training, training_config
+            foundation = node.FOUNDATION
+            run_training(training_config(foundation), stage=foundation.STAGE,
+                         resume=foundation.RESUME)
+        else:
+            raise ValueError(f'Unsupported TRAIN.MODE: {node.MODE!r}; use foundation or offline_rl')
         return 0
     if not config.TASK_CONFIG.COLLECT.OPEN:
         print('TRAIN.OPEN and COLLECT.OPEN are both false; nothing to run.')

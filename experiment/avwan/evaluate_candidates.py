@@ -97,8 +97,10 @@ def main():
             comparison.append(future.result())
             comparison.sort(key=lambda item: item['epoch'])
             write_json(output / 'validation_comparison.json', comparison)
-    # Tie-breaks use validation success and offline loss; no test feedback is used.
-    best = max(comparison, key=lambda x: (x['rollout']['spl'], x['rollout']['success_rate'], -x['val_loss']))
+    # Older runs include offline validation loss as a tie-breaker. Train-only
+    # runs expose just the final epoch, so navigation metrics select it directly.
+    best = max(comparison, key=lambda x: (x['rollout']['spl'], x['rollout']['success_rate'],
+                                         -x.get('val_loss', 0.)))
     write_json(output / 'selected_checkpoint.json', best)
     import shutil
     shutil.copyfile(run / best['file'], run / 'best_spl.pt')
@@ -136,8 +138,14 @@ def main():
         write_json(folder / 'summary.json', test)
         write_json(folder / 'selection.json', sorted(selections))
         (folder / 'episodes.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in sorted(rows, key=lambda r:(r['scene'],r['episode_id']))))
-    criterion = ('validation rollout SPL among best critic loss, best policy NLL, and final epoch'
-                 if args.foundation_checkpoint else 'validation rollout SPL among top offline-loss checkpoints')
+    if all(item.get('criterion') == 'epoch_snapshot' for item in candidates):
+        criterion = 'navigation validation SPL among saved training epochs'
+    elif all(item.get('criterion') == 'final_epoch' for item in candidates):
+        criterion = 'navigation validation SPL for the final training epoch'
+    else:
+        criterion = ('validation rollout SPL among best critic loss, best policy NLL, and final epoch'
+                     if args.foundation_checkpoint else
+                     'validation rollout SPL among top offline-loss checkpoints')
     if args.test_max_episodes and test['episodes'] != args.test_max_episodes:
         raise RuntimeError('Test episode count differs from the requested random sample size')
     write_json(output / 'final_results.json', dict(selection=criterion,

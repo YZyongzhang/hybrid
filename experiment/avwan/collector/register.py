@@ -1,5 +1,5 @@
 """Collector registry, following the AVNAV collector interface."""
-from .collect import GreedyCollect
+from .collect import DeverseCollect, GreedyCollect
 
 
 class REGISTER:
@@ -26,3 +26,6 @@ class REGISTER:
 CollectRegister = REGISTER()
 CollectRegister.register('greedy')(GreedyCollect)
 CollectRegister.register('avwan_greedy')(GreedyCollect)
+CollectRegister.register('diverse')(DeverseCollect)
+CollectRegister.register('deverse')(DeverseCollect)
+CollectRegister.register('avwan_diverse')(DeverseCollect)

@@ -73,9 +73,11 @@ class RecurrentSACCQL(nn.Module):
 
     def make_optimizers(self):
         lr = self.config['learning_rate']
-        return dict(actor=torch.optim.Adam(self.actor.parameters(), lr=lr),
-                    critic=torch.optim.Adam(list(self.q1.parameters()) + list(self.q2.parameters()), lr=lr),
-                    alpha=torch.optim.Adam([self.log_alpha], lr=lr))
+        weight_decay = self.config.get('weight_decay', 0.)
+        return dict(actor=torch.optim.Adam(self.actor.parameters(), lr=lr, weight_decay=weight_decay),
+                    critic=torch.optim.Adam(list(self.q1.parameters()) + list(self.q2.parameters()),
+                                            lr=lr, weight_decay=weight_decay),
+                    alpha=torch.optim.Adam([self.log_alpha], lr=lr, weight_decay=weight_decay))
 
     @torch.no_grad()
     def act(self, feature, action_mask, hidden=None, deterministic=True):

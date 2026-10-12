@@ -8,17 +8,23 @@ import json
 from pathlib import Path
 import random
 import resource
+import sys
 import time
 import traceback
 
 import numpy as np
 import torch
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from experiment.avwan.config.default import get_config
 from experiment.avwan.data_pipeline.prepare import write_json
 from experiment.avwan.model.hybrid import Network
 
-ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_SETTINGS = ROOT / 'experiment/avwan/config/evaluate.yaml'
 
 
 class LearnedPolicy:
@@ -127,7 +133,10 @@ def evaluate(args):
     if getattr(args, 'revisit_penalty', 0.):
         from .revisit_policy import RevisitSelector
         policy.action_selector = RevisitSelector(args.revisit_penalty)
-    config = get_config(args.config, opts=['TASK_CONFIG.DATASET.SPLIT', args.split])
+    config_opts = ['TASK_CONFIG.DATASET.SPLIT', args.split]
+    if args.prediction_interval is not None:
+        config_opts.extend(['PREDICTION_INTERVAL', args.prediction_interval])
+    config = get_config(args.config, opts=config_opts)
     config.defrost()
     config.TASK_CONFIG.TRAIN.OPEN = False
     config.TASK_CONFIG.COLLECT.OPEN = False
@@ -240,26 +249,58 @@ def evaluate(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--checkpoint', required=True)
+    parser.add_argument('--settings', default=str(DEFAULT_SETTINGS),
+                        help='Evaluation settings YAML (defaults to experiment/avwan/config/evaluate.yaml)')
+    parser.add_argument('--checkpoint')
     parser.add_argument('--foundation-checkpoint', help='Frozen encoder checkpoint for an offline RL SAC policy')
-    parser.add_argument('--output', required=True)
-    parser.add_argument('--split', default='val_telephone')
+    parser.add_argument('--output')
+    parser.add_argument('--split')
     parser.add_argument('--selection-source', help='Evaluate exactly these collected episode IDs')
-    parser.add_argument('--max-episodes', type=int, default=0)
-    parser.add_argument('--seed', type=int, default=20260925)
-    parser.add_argument('--device', default='cuda:0')
-    parser.add_argument('--config')
-    parser.add_argument('--resume', action='store_true')
-    parser.add_argument('--reset-memory', action='store_true', help='Ablate actor memory while retaining visual frame history')
-    parser.add_argument('--revisit-penalty', type=float, default=0., help='Re-rank motion actions on repeated visual observations')
-    parser.add_argument('--shards', type=int, default=1)
-    parser.add_argument('--shard-index', type=int, default=0)
-    parser.add_argument('--max-new-episodes', type=int, default=0,
+    parser.add_argument('--max-episodes', type=int)
+    parser.add_argument('--seed', type=int)
+    parser.add_argument('--device')
+    parser.add_argument('--config', help='Optional Habitat environment YAML override')
+    parser.add_argument('--prediction-interval', type=int,
+                        help='Primitive steps per selected waypoint action')
+    parser.add_argument('--resume', action='store_true', default=None)
+    parser.add_argument('--reset-memory', action='store_true', default=None,
+                        help='Ablate actor memory while retaining visual frame history')
+    parser.add_argument('--revisit-penalty', type=float,
+                        help='Re-rank motion actions on repeated visual observations')
+    parser.add_argument('--shards', type=int)
+    parser.add_argument('--shard-index', type=int)
+    parser.add_argument('--max-new-episodes', type=int,
                         help='End this process after this many new episodes; resume to continue')
-    parser.add_argument('--max-rss-mb', type=int, default=0,
+    parser.add_argument('--max-rss-mb', type=int,
                         help='End between episodes when peak process RSS reaches this many MiB')
     parser.add_argument('--profile', help='Optional cProfile output for rollout performance diagnosis')
     args = parser.parse_args()
+    settings_path = Path(args.settings).expanduser()
+    if not settings_path.is_absolute():
+        settings_path = ROOT / settings_path
+    settings = yaml.safe_load(settings_path.read_text()) or {}
+    if not isinstance(settings, dict):
+        raise ValueError(f'Evaluation settings must be a YAML mapping: {settings_path}')
+    for key in ('checkpoint', 'foundation_checkpoint', 'output', 'split', 'selection_source',
+                'max_episodes', 'seed', 'device', 'config', 'prediction_interval', 'resume', 'reset_memory',
+                'revisit_penalty', 'shards', 'shard_index', 'max_new_episodes', 'max_rss_mb', 'profile'):
+        value = getattr(args, key)
+        if value is None:
+            value = settings.get(key)
+        setattr(args, key, value)
+    if not args.checkpoint or not args.output:
+        raise ValueError(f'Evaluation settings must define checkpoint and output: {settings_path}')
+    defaults = dict(split='val_telephone', max_episodes=0, seed=20260925, device='cuda:0',
+                    resume=False, reset_memory=False, revisit_penalty=0., shards=1,
+                    shard_index=0, max_new_episodes=0, max_rss_mb=0)
+    for key, value in defaults.items():
+        if getattr(args, key) is None:
+            setattr(args, key, value)
+    for key in ('checkpoint', 'foundation_checkpoint', 'output', 'selection_source', 'config', 'profile'):
+        value = getattr(args, key)
+        if value:
+            path = Path(value).expanduser()
+            setattr(args, key, str(path if path.is_absolute() else (ROOT / path).resolve()))
     import os
     os.chdir(ROOT)
     if args.profile:

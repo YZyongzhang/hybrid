@@ -38,8 +38,15 @@ def train(config, manifest, device, resume=None):
         model.actor.prior.load_state_dict(foundation.final.action_head.state_dict())
         del foundation
     optimizers = model.make_optimizers()
-    start_epoch, global_step, best, best_nll = 0, 0, float('inf'), float('inf')
-    candidates = {}
+    start_epoch, global_step = 0, 0
+    checkpoint_index = {}
+    index_path = output / 'top_checkpoints.json'
+    if index_path.exists():
+        for item in json.loads(index_path.read_text()):
+            filename = item.get('file', '')
+            if (filename.startswith('epoch_') and filename.endswith('.pt')
+                    and (output / filename).is_file()):
+                checkpoint_index[int(item['epoch'])] = item
     if resume:
         state = torch.load(resume, map_location='cpu', weights_only=False)
         if state['signature'] != signature or state['config']['seed'] != config['seed']:
@@ -50,9 +57,7 @@ def train(config, manifest, device, resume=None):
         model.load_state_dict(state['model'])
         for key, optimizer in optimizers.items():
             optimizer.load_state_dict(state['optimizers'][key])
-        start_epoch, global_step, best = state['epoch'], state['global_step'], state['best_val_critic_loss']
-        best_nll = state.get('best_val_policy_nll', float('inf'))
-        candidates = state.get('candidates', {})
+        start_epoch, global_step = state['epoch'], state['global_step']
         random.setstate(state['rng']['python'])
         np.random.set_state(state['rng']['numpy'])
         torch.set_rng_state(state['rng']['torch'])
@@ -60,95 +65,80 @@ def train(config, manifest, device, resume=None):
             torch.cuda.set_rng_state_all(state['rng']['cuda'])
     if start_epoch >= cfg['epochs']:
         write_json(output / 'completed.json', dict(epochs=start_epoch, global_step=global_step,
-                   best_val_critic_loss=best, checkpoint=str(Path(resume).resolve())))
+                   checkpoint=str(Path(resume).resolve())))
         print(f'Checkpoint already completed {start_epoch} epochs', flush=True)
         return
     # Extending a finished run must not leave its old completion marker visible.
     (output / 'completed.json').unlink(missing_ok=True)
     write_json(output / 'config.json', config)
     write_json(output / 'dataset.json', manifest)
-    datasets = {split: FeatureEpisodes(config['features']['cache'], manifest, split) for split in ('train', 'val')}
-    print(f'SAC-CQL on {device}; full episode LSTMs; episodes='
-          f'{ {k: len(v) for k, v in datasets.items()} }; transitions={manifest["transitions"]}', flush=True)
+    dataset = FeatureEpisodes(config['features']['cache'], manifest, 'train')
+    print(f'SAC-CQL on {device}; full episode LSTMs; '
+          f'episodes={len(dataset)}; transitions={manifest["transitions"]}', flush=True)
     writer = None
     if cfg['tensorboard']:
         from torch.utils.tensorboard import SummaryWriter
-        writer = SummaryWriter(str(output / 'tensorboard'))
+        tensorboard_dir = Path(config.get('tensorboard_dir', output / 'tensorboard'))
+        writer = SummaryWriter(str(tensorboard_dir))
 
-    def run_epoch(split, epoch):
+    def run_epoch(epoch):
         nonlocal global_step
-        update = split == 'train'
-        model.train(update)
-        loader = DataLoader(datasets[split], batch_size=cfg['batch_size'], shuffle=update,
+        model.train()
+        loader = DataLoader(dataset, batch_size=cfg['batch_size'], shuffle=True,
                             collate_fn=collate_episodes, num_workers=0,
                             generator=torch.Generator().manual_seed(config['seed'] + epoch))
         totals, seen, started = {}, 0, time.monotonic()
         for step, batch in enumerate(loader, 1):
             batch = {key: value.to(device) for key, value in batch.items()}
-            if update:
-                metrics = model.update(batch, optimizers)
-                global_step += 1
-            else:
-                with torch.no_grad():
-                    metrics = {key: float(value) for key, value in model.losses(batch).items()}
+            metrics = model.update(batch, optimizers)
+            global_step += 1
             if not all(np.isfinite(value) for value in metrics.values()):
-                raise FloatingPointError(f'Nonfinite {split} metrics')
+                raise FloatingPointError('Nonfinite training metrics')
             count = int(batch['valid'].sum())
             seen += count
             for key, value in metrics.items():
                 totals[key] = totals.get(key, 0.) + value * count
-            if update and step % cfg['log_every'] == 0:
+            if step % cfg['log_every'] == 0:
                 print(f'train epoch={epoch+1} batch={step}/{len(loader)} '
                       f'td={totals["td_loss"]/seen:.4f} cql={totals["cql_loss"]/seen:.4f} '
                       f'alpha={metrics["alpha"]:.4f}', flush=True)
                 if writer:
                     for key, value in metrics.items():
                         writer.add_scalar(f'train_step/{key}', value, global_step)
-            if update:
-                with (output / 'steps.jsonl').open('a') as handle:
-                    handle.write(json.dumps(dict(epoch=epoch + 1, global_step=global_step, **metrics)) + '\n')
+            with (output / 'steps.jsonl').open('a') as handle:
+                handle.write(json.dumps(dict(epoch=epoch + 1, global_step=global_step, **metrics)) + '\n')
         return dict(**{key: value / seen for key, value in totals.items()}, transitions=seen,
                     seconds=time.monotonic() - started)
 
     try:
         for epoch in range(start_epoch, cfg['epochs']):
-            train_metrics = run_epoch('train', epoch)
-            val_metrics = run_epoch('val', epoch)
-            improved = val_metrics['critic_loss'] < best
-            improved_nll = val_metrics['policy_nll'] < best_nll
-            best = min(best, val_metrics['critic_loss'])
-            best_nll = min(best_nll, val_metrics['policy_nll'])
-            for name, criterion, changed in [('best.pt', 'val_critic_loss', improved),
-                                             ('best_policy.pt', 'val_policy_nll', improved_nll),
-                                             ('latest.pt', 'final_epoch', True)]:
-                if changed:
-                    candidates[name] = dict(file=name, epoch=epoch + 1, criterion=criterion,
-                                            val_loss=val_metrics['critic_loss'],
-                                            val_policy_nll=val_metrics['policy_nll'])
-            row = dict(epoch=epoch + 1, global_step=global_step, train=train_metrics, val=val_metrics)
-            state = dict(epoch=epoch + 1, global_step=global_step, best_val_critic_loss=best,
-                         best_val_policy_nll=best_nll, candidates=candidates.copy(),
+            train_metrics = run_epoch(epoch)
+            row = dict(epoch=epoch + 1, global_step=global_step, train=train_metrics)
+            state = dict(epoch=epoch + 1, global_step=global_step,
                          signature=signature, config=config, model=model.state_dict(),
                          optimizers={key: value.state_dict() for key, value in optimizers.items()},
                          rng=dict(python=random.getstate(), numpy=np.random.get_state(), torch=torch.get_rng_state(),
                                   cuda=torch.cuda.get_rng_state_all() if device.type == 'cuda' else None))
+            epoch_name = f'epoch_{epoch + 1:03d}.pt'
+            epoch_state = {key: value for key, value in state.items()
+                           if key not in ('optimizers', 'rng')}
+            epoch_state['model'] = {key: value.detach().cpu().clone()
+                                    for key, value in state['model'].items()}
+            save_checkpoint(output / epoch_name, epoch_state)
             save_checkpoint(output / 'latest.pt', state)
-            if improved:
-                save_checkpoint(output / 'best.pt', state)
-            if improved_nll:
-                save_checkpoint(output / 'best_policy.pt', state)
-            write_json(output / 'top_checkpoints.json', list(candidates.values()))
+            checkpoint_index[epoch + 1] = dict(file=epoch_name, epoch=epoch + 1,
+                                               criterion='epoch_snapshot')
+            write_json(index_path, [checkpoint_index[key] for key in sorted(checkpoint_index)])
             with (output / 'metrics.jsonl').open('a') as handle:
                 handle.write(json.dumps(row) + '\n')
             if writer:
-                for split, metrics in [('train', train_metrics), ('val', val_metrics)]:
-                    for key, value in metrics.items():
-                        writer.add_scalar(f'{split}/{key}', value, epoch + 1)
+                for key, value in train_metrics.items():
+                    writer.add_scalar(f'train/{key}', value, epoch + 1)
                 writer.flush()
             print(json.dumps(row), flush=True)
     finally:
         if writer:
             writer.close()
     write_json(output / 'completed.json', dict(epochs=cfg['epochs'], global_step=global_step,
-               best_val_critic_loss=best, checkpoint=str(output / 'latest.pt')))
+               checkpoint=str(output / 'latest.pt')))
     print(f'Offline RL training complete: {output}', flush=True)

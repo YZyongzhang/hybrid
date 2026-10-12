@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent
 
 def load_config(path):
     config = yaml.safe_load(Path(path).read_text())
-    for section, keys in [('features', ['source', 'val_source', 'checkpoint', 'cache']),
+    for section, keys in [('features', ['source', 'checkpoint', 'cache']),
                           ('training', ['output'])]:
         for key in keys:
             config[section][key] = str((ROOT / Path(config[section][key]).expanduser()).resolve())
@@ -59,7 +59,7 @@ def main(argv=None):
         parser.add_argument('--' + key, type=int)
     args = parser.parse_args(argv)
     config = load_config(args.config)
-    for key in ('source', 'val_source', 'checkpoint', 'cache', 'max_episodes'):
+    for key in ('source', 'checkpoint', 'cache', 'max_episodes'):
         value = getattr(args, key)
         if value is not None:
             config['features'][key] = value if key == 'max_episodes' else str(Path(value).expanduser().resolve())

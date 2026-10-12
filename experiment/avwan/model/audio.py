@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from .Encoder import MultiHeadAttention
 
@@ -27,7 +28,8 @@ def layer_init(module):
 class AudioCRNN(nn.Module):
     def __init__(self, normalization='standard') -> None:
         super().__init__()
-        if normalization not in ('standard', 'binaural_whiten', 'binaural_ratio'):
+        if normalization not in ('standard', 'binaural_whiten', 'binaural_ratio',
+                                 'binaural_robust_ratio'):
             raise ValueError(f'Unknown audio normalization: {normalization}')
         self.normalization = normalization
         self._number_input_audio = 2
@@ -100,6 +102,8 @@ class AudioCRNN(nn.Module):
             # A fixed scale preserves the strength of interaural differences.
             # Per-sample standardization here would erase that spatial cue.
             audio = instantaneous_binaural_ratio(audio) * 5.
+        elif self.normalization == 'binaural_robust_ratio':
+            audio = robust_binaural_ratio(audio) * 5.
         else:
             dims = (1, 2, 3)
             audio = (audio - audio.mean(dims, keepdim=True)) / (audio.std(dims, keepdim=True, unbiased=False) + 1e-6)
@@ -126,3 +130,23 @@ def instantaneous_binaural_ratio(audio):
     left, right = magnitude.unbind(-1)
     contrast = (left-right)/(left+right).clamp_min(torch.finfo(torch.float32).tiny)
     return torch.stack((contrast,-contrast),dim=-1)
+
+
+def robust_binaural_ratio(audio):
+    """Source-scale invariant left/right contrast with a relative silence floor.
+
+    The original two channels were exact negatives. Here the second channel
+    carries a local energy-weighted contrast. Both channels retain direction,
+    while low-energy bins contribute less instead of amplifying acoustic noise.
+    A gain shared by both ears cancels, including in the relative floor.
+    """
+    magnitude = torch.expm1(audio.float().clamp(0, 20))
+    left, right = magnitude.unbind(-1)
+    total = left + right
+    difference = left - right
+    floor = total.mean((1, 2), keepdim=True) * .03
+    raw = difference / (total + floor).clamp_min(1e-12)
+    smooth_difference = F.avg_pool2d(difference.unsqueeze(1), 3, stride=1, padding=1).squeeze(1)
+    smooth_total = F.avg_pool2d(total.unsqueeze(1), 3, stride=1, padding=1).squeeze(1)
+    smooth = smooth_difference / (smooth_total + floor).clamp_min(1e-12)
+    return torch.stack((raw, -smooth), dim=-1)

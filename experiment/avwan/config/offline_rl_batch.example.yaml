@@ -1,0 +1,52 @@
+# Keep the complete run configuration here. base_config is only a fallback for
+# fields omitted below; batch values override it. Paths below follow the
+# usual experiment/avwan-relative behavior (except absolute source paths).
+base_config: offline_rl.yaml
+output_root: /data/Getuanhui/runs/offline_rl_bc5_batch
+extract: true  # Extract frozen features once, then train every run in sequence.
+
+seed: 20260925
+device: cuda
+cpu_threads: 4
+
+features:
+  checkpoint: runs/multiple_train_val_20261006/best.pt
+  source: /data/Getuanhui/avwan_multiple_greedy_train
+  cache: data_cache/multiple_train_only_rl_v1
+  batch_size: 64
+  episode_batch_size: 8
+  workers: 4
+  max_episodes: 0
+
+# Every training parameter is listed here. A one-item list holds that value
+# fixed; add candidates to sweep that parameter. These defaults create 4 runs.
+grid:
+  training.epochs: [100]
+  training.batch_size: [32]
+  training.hidden_dim: [256]
+  training.lstm_layers: [1]
+  training.learning_rate: [0.0003]
+  training.gamma: [0.65]
+  training.initial_alpha: [0.1]
+  training.entropy_ratio: [0.5] # 0.5-0.1之间最好的，后续可以的话可以从0.5附近调一下
+  training.tau: [0.005]
+  training.cql_weight: [0.2] # 0.2是最好的，后续可以在0.2附近进行调一下
+  training.cql_temperature: [1.0]
+  training.grad_clip: [10.0]
+  training.log_every: [100]
+  training.tensorboard: [true]
+  training.terminal_mask: [false]
+  training.bc_weight: [5]
+  training.actor_rl_weight: [1.0]
+  training.foundation_prior: [false]
+
+# For named individual runs instead, replace `grid` with:
+# experiments:
+#   - name: gamma_070
+#     training:
+#       gamma: 0.70
+#       cql_weight: 1.0
+#   - name: gamma_075
+#     training:
+#       gamma: 0.75
+#       cql_weight: 1.0

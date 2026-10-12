@@ -265,11 +265,12 @@ class TrainingTests(unittest.TestCase):
 
     def test_audiogoal_schema_and_root_training_dispatch(self):
         cfg = get_config()
-        self.assertEqual(training_config(cfg.TASK_CONFIG.TRAIN), load_config(ROOT / 'config/audiogoal.yaml'))
+        self.assertEqual(training_config(cfg.TASK_CONFIG.TRAIN.FOUNDATION), load_config(ROOT / 'config/audiogoal.yaml'))
         cfg.defrost()
         cfg.TASK_CONFIG.TRAIN.OPEN = True
+        cfg.TASK_CONFIG.TRAIN.MODE = 'foundation'
         cfg.TASK_CONFIG.COLLECT.OPEN = True
-        cfg.TASK_CONFIG.TRAIN.EPOCHS = 2
+        cfg.TASK_CONFIG.TRAIN.FOUNDATION.EPOCHS = 2
         cfg.freeze()
         with patch('experiment.avwan.train.run_training') as train_run, \
              patch('experiment.avwan.run.COLLECTER') as collect, \
@@ -284,10 +285,11 @@ class TrainingTests(unittest.TestCase):
         cfg.TASK_CONFIG.TRAIN.OPEN = cfg.TASK_CONFIG.COLLECT.OPEN = False
         self.assertEqual(run(cfg), 0)
         overrides = self.root / 'overrides.yaml'
-        overrides.write_text(yaml.safe_dump({'TASK_CONFIG': {'TRAIN': {'OPEN': True, 'BATCH_SIZE': 7}}}))
+        overrides.write_text(yaml.safe_dump({'TASK_CONFIG': {'TRAIN': {
+            'OPEN': True, 'FOUNDATION': {'BATCH_SIZE': 7}}}}))
         merged = get_config(str(overrides))
         self.assertTrue(merged.TASK_CONFIG.TRAIN.OPEN)
-        self.assertEqual(merged.TASK_CONFIG.TRAIN.BATCH_SIZE, 7)
+        self.assertEqual(merged.TASK_CONFIG.TRAIN.FOUNDATION.BATCH_SIZE, 7)
 
 
 if __name__ == '__main__':

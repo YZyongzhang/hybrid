@@ -1,0 +1,4 @@
+TASK_CONFIG:
+  COLLECT:
+    RESUME: true
+    RESUME_MODE: episode

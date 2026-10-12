@@ -192,6 +192,17 @@ class Network(nn.Module):
         angles = self.audio_encoder.fnn(audio_token.squeeze(1)).float()
         return actions, angles
 
+    def forward_joint_features(self, audio, rgb, depth, gm, am, action_mask,
+                               return_audio=False):
+        """Expose fused features for source-view consistency training."""
+        embedding, audio_token = self._encode(audio, rgb, depth, gm, am, action_mask)
+        actions = self.final.action_head(self.final.dropout(embedding)).float()
+        actions = actions.masked_fill(~action_mask.bool(), -1e9)
+        angles = self.audio_encoder.fnn(audio_token.squeeze(1)).float()
+        if return_audio:
+            return actions, angles, embedding, audio_token.squeeze(1)
+        return actions, angles, embedding
+
     def forward(self, audio, rgb, depth, gm, am, action_mask):
         embedding, _ = self._encode(audio, rgb, depth, gm, am, action_mask)
         dropped = self.final.dropout(embedding)

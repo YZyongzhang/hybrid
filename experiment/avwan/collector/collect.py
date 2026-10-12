@@ -3,8 +3,10 @@ from copy import deepcopy
 import gzip
 import hashlib
 import json
+import math
 from pathlib import Path
 import pickle
+import random
 import traceback
 from uuid import uuid4
 
@@ -53,8 +55,32 @@ def collected_scenes(output):
     return scenes
 
 
-def collect_episode(env):
-    """Keep final observations before any reset and use the env's SMDP return."""
+def collected_episode_keys(output):
+    """Completed indexed episodes, including saved-file verification."""
+    output = Path(output)
+    index = output / 'episodes.jsonl'
+    if not index.exists():
+        return set()
+    keys = set()
+    with index.open() as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if row.get('status') == 'error':
+                continue
+            if row.get('saved') and not (output / row['file']).is_file():
+                continue
+            keys.add((str(row['scene']), str(row['episode_id'])))
+    return keys
+
+
+def collect_episode(env, action_selector=None):
+    """Keep final observations and SMDP fields while collecting one episode.
+
+    ``action_selector`` may return either an action or ``(action, metadata)``.
+    The default remains the original BFS expert collector.
+    """
     from experiment.avwan.environment.BFSExpert import NoReachableWaypointError
     observation = env.reset()
     info = env.get_info(observation)
@@ -63,7 +89,12 @@ def collect_episode(env):
     done = False
     while not done:
         try:
-            action = env.get_expert_map_action()
+            selection = (action_selector(env, observation) if action_selector
+                         else env.get_expert_map_action())
+            if isinstance(selection, tuple):
+                action, selection_metadata = selection
+            else:
+                action, selection_metadata = selection, None
         except NoReachableWaypointError as error:
             blocked = str(error)
             # Collection stopped, not a task terminal. Bootstrap from the last
@@ -75,7 +106,9 @@ def collect_episode(env):
         observation, _, done, info = env.step(action)
         transition = env.last_transition
         if not transition['action_mask'][action]:
-            raise ValueError(f'Expert selected masked action {action}')
+            raise ValueError(f'Collector selected masked action {action}')
+        if selection_metadata:
+            transition.update(selection_metadata)
         transition['expert_decision'] = deepcopy(info.get('expert_decision'))
         transition['reaching_waypoint'] = bool(info['reaching_waypoint'])
         transition['cant_reach_waypoint'] = bool(info['cant_reach_waypoint'])
@@ -94,6 +127,8 @@ def collect_episode(env):
 
 class GreedyCollect:
     """Collect supplied episodes, optionally skipping previously collected scenes."""
+
+    policy_name = 'BFSExpert'
 
     def __init__(self, env, config):
         self.env = env
@@ -127,12 +162,18 @@ class GreedyCollect:
             raise ValueError('Environment dataset contains no episodes to collect')
         if not cfg.RESUME and output.exists() and any(output.iterdir()):
             raise FileExistsError(f'Output is not empty: {output}; set COLLECT.RESUME or use a new directory')
-        # Take the snapshot before collecting. Saving the first episode of a new
-        # scene must not cause its remaining episodes to be skipped in this run.
-        existing_scenes = collected_scenes(output) if cfg.RESUME else set()
+        # Freeze the pending list before collecting. Episode mode safely resumes
+        # a run interrupted after writing only part of a scene.
+        resume_mode = getattr(cfg, 'RESUME_MODE', 'scene')
+        if resume_mode not in ('scene', 'episode'):
+            raise ValueError(f'Unknown COLLECT.RESUME_MODE: {resume_mode}')
+        existing_scenes = (collected_scenes(output) if cfg.RESUME and resume_mode == 'scene'
+                           else set())
+        existing_keys = (collected_episode_keys(output) if cfg.RESUME and resume_mode == 'episode'
+                         else set())
         skipped_scenes = sorted({self._key(ep)[0] for ep in episodes} & existing_scenes)
         pending = [(index, ep) for index, ep in enumerate(episodes)
-                   if self._key(ep)[0] not in existing_scenes]
+                   if self._key(ep)[0] not in existing_scenes and self._key(ep) not in existing_keys]
         for scene in skipped_scenes:
             print(f'RESUME: skipping collected scene {scene}', flush=True)
         if not pending:
@@ -150,7 +191,7 @@ class GreedyCollect:
             # collector code. Preserve the old provenance and record this run.
             (output / 'resume_runs').mkdir(exist_ok=True)
             run_path = output / 'resume_runs' / f'{uuid4().hex}.json'
-        write_json(run_path, dict(format_version=1, policy='BFSExpert',
+        write_json(run_path, dict(format_version=1, policy=self.policy_name,
             config=self.config.dump(), dataset_count=dataset_count, planned=len(pending),
             skipped_scenes=skipped_scenes, dataset_signature=signature.hexdigest(),
             source_hashes={str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
@@ -187,7 +228,7 @@ class GreedyCollect:
                     self.env.seed((int(self.config.SEED) + index) % 2**32)
                     row = dict(scene=scene, episode_id=episode_id, status='error', saved=False)
                     try:
-                        transitions, metrics, info = collect_episode(self.env)
+                        transitions, metrics, info = self._collect_episode(index)
                         row.update(metrics, gamma=self.env.gamma,
                                    action_count=self.env.action_space.n, stop_action=self.env.stop_action,
                                    prediction_interval=self.config.PREDICTION_INTERVAL,
@@ -218,6 +259,9 @@ class GreedyCollect:
                 print(f"{progress}/{len(pending)} {name}: {row['status']}, saved={row.get('saved')}", flush=True)
         return int(new_errors > 0)
 
+    def _collect_episode(self, index):
+        return collect_episode(self.env)
+
     @staticmethod
     def _key(episode):
         scene = Path(episode.scene_id).stem
@@ -225,3 +269,90 @@ class GreedyCollect:
         if Path(episode_id).name != episode_id or episode_id in ('', '.', '..'):
             raise ValueError(f'Invalid episode ID: {episode_id}')
         return scene, episode_id
+
+
+class DeverseCollect(GreedyCollect):
+    """Collect expert anchors plus mask-safe, novelty-weighted waypoint actions.
+
+    Episodes use one of three behavior levels: pure BFS, modest exploration,
+    or stronger exploration. Exploratory actions are sampled only from the
+    environment's current action mask. A small STOP probability adds explicit
+    early-stop examples; normal expert STOP decisions are always retained.
+    """
+
+    policy_name = 'DeverseCollect'
+    _MODES = (('expert', 0.0), ('balanced', 0.15), ('explore', 0.35))
+    _MODE_WEIGHTS = (0.4, 0.4, 0.2)
+    _RANDOM_STOP_PROBABILITY = 0.02
+
+    def __init__(self, env, config):
+        super().__init__(env, config)
+        self._global_action_counts = [0] * int(env.action_space.n)
+
+    def _collect_episode(self, index):
+        seed = (int(self.config.SEED) + int(index) * 2654435761) % (2 ** 32)
+        rng = random.Random(seed)
+        mode, epsilon = rng.choices(self._MODES, weights=self._MODE_WEIGHTS, k=1)[0]
+        episode_action_counts = [0] * len(self._global_action_counts)
+        stats = {'decisions': 0, 'exploratory_decisions': 0,
+                 'random_stop_decisions': 0}
+        action_count = len(self._global_action_counts)
+        map_size = math.isqrt(action_count)
+        if map_size * map_size != action_count:
+            raise ValueError('Diverse waypoint collection requires a square action map')
+        stop_action = int(self.env.stop_action)
+
+        def choose_action(env, observation):
+            expert_action = int(env.get_expert_map_action())
+            mask = env.action_mask(observation)
+            if not 0 <= expert_action < action_count or not mask[expert_action]:
+                raise ValueError(f'BFS expert selected masked action {expert_action}')
+
+            action, source = expert_action, 'expert'
+            if epsilon and rng.random() < epsilon:
+                valid = [i for i, allowed in enumerate(mask) if allowed]
+                alternatives = [i for i in valid if i != expert_action]
+                use_random_stop = (stop_action in alternatives
+                                   and rng.random() < self._RANDOM_STOP_PROBABILITY)
+                if use_random_stop:
+                    action, source = stop_action, 'explore_stop'
+                    stats['random_stop_decisions'] += 1
+                elif alternatives:
+                    candidates = [i for i in alternatives if i != stop_action]
+                    if candidates:
+                        def weight(candidate):
+                            global_count = self._global_action_counts[candidate]
+                            local_count = episode_action_counts[candidate]
+                            row_delta = abs(candidate // map_size - expert_action // map_size)
+                            col_delta = abs(candidate % map_size - expert_action % map_size)
+                            distance_penalty = 1.0 + 0.08 * (row_delta + col_delta)
+                            return 1.0 / (math.sqrt(1 + global_count + 2 * local_count)
+                                          * distance_penalty)
+
+                        action = rng.choices(candidates,
+                                             weights=[weight(i) for i in candidates], k=1)[0]
+                        source = 'explore_waypoint'
+                    else:
+                        action, source = expert_action, 'expert_no_alternative'
+                if action != expert_action:
+                    stats['exploratory_decisions'] += 1
+
+            self._global_action_counts[action] += 1
+            episode_action_counts[action] += 1
+            stats['decisions'] += 1
+            return action, dict(expert_action=expert_action,
+                                behavior_policy=source,
+                                collection_mode=mode)
+
+        transitions, metadata, info = collect_episode(self.env, choose_action)
+        metadata.update(collection_mode=mode, exploration_probability=epsilon,
+                        exploratory_decisions=stats['exploratory_decisions'],
+                        random_stop_decisions=stats['random_stop_decisions'],
+                        exploration_fraction=(stats['exploratory_decisions'] /
+                                              max(stats['decisions'], 1)))
+        return transitions, metadata, info
+
+
+# Keep the conventional spelling available for callers while accepting the
+# spelling used in the original collector request.
+DiverseCollect = DeverseCollect

@@ -113,10 +113,13 @@ _TC.COLLECT.CONTENT_DIR = ""
 _TC.COLLECT.SUCCESS_ONLY = False
 _TC.COLLECT.VISUALIZE = True
 _TC.COLLECT.RESUME = False
+_TC.COLLECT.RESUME_MODE = 'scene'  # 'episode' continues an interrupted full-dataset run.
 _TC.COLLECT.TIMEOUT_SECONDS = 300
 # Register the training schema with YACS; audiogoal.yaml owns its defaults.
 _TC.TRAIN = CN(yaml.safe_load(Path(__file__).with_name('audiogoal.yaml').read_text())['TRAIN'])
 _TC.TRAIN.OPEN = False  # Schema default; task YAML controls actual dispatch.
+_TC.TEST = CN(yaml.safe_load(Path(__file__).with_name('audiogoal.yaml').read_text())['TEST'])
+_TC.TEST.OPEN = False  # Schema default; task YAML controls actual dispatch.
 # -----------------------------------------------------------------------------
 # AUDIOGOAL_SENSOR
 # -----------------------------------------------------------------------------

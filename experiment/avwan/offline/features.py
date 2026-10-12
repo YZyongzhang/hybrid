@@ -16,7 +16,7 @@ import time
 import numpy as np
 import torch
 
-from ..data_pipeline.prepare import INPUTS, encode_observation, snapshot, scene_name, write_json
+from ..data_pipeline.prepare import INPUTS, encode_observation, scene_name, snapshot, write_json
 from ..model.hybrid import Network
 from ..model.maps import unpack_geometry
 
@@ -84,6 +84,47 @@ def load_foundation(checkpoint, device):
     return model
 
 
+def snapshot_sources(source, max_episodes=0):
+    """Snapshot one or more raw episode roots in stable source/scene order."""
+    if not isinstance(source, (list, tuple)):
+        return snapshot(source, max_episodes)
+
+    roots = [Path(value).resolve() for value in source]
+    if not roots:
+        raise ValueError('At least one source directory is required')
+    grouped = {}
+    for source_index, root in enumerate(roots):
+        files = sorted((root / 'episodes').rglob('*.pkl.gz'))
+        if not files:
+            raise FileNotFoundError(f'No episodes/**/*.pkl.gz in {root}')
+        for path in files:
+            grouped.setdefault(scene_name(path), []).append((source_index, path))
+
+    # The additional cache is aligned with training_annotations.json, which
+    # lists policy data before recovery data within each scene.
+    for entries in grouped.values():
+        entries.sort(key=lambda item: (item[0], item[1].name))
+    if max_episodes:
+        selected = []
+        queues = {key: deque(value) for key, value in sorted(grouped.items())}
+        while len(selected) < max_episodes and any(queues.values()):
+            for queue in queues.values():
+                if queue and len(selected) < max_episodes:
+                    selected.append(queue.popleft())
+        paths_with_roots = selected
+    else:
+        paths_with_roots = [item for key in sorted(grouped) for item in grouped[key]]
+
+    paths = [path for _, path in paths_with_roots]
+    records = []
+    for source_index, path in paths_with_roots:
+        root = roots[source_index]
+        stat = path.stat()
+        records.append((f'{source_index}/{path.relative_to(root)}', stat.st_size, stat.st_mtime_ns))
+    fingerprint = hashlib.sha256(json.dumps(records).encode()).hexdigest()
+    return roots, paths, records, fingerprint
+
+
 @torch.inference_mode()
 def embed(model, episodes, batch_size, device):
     """Batch across episodes; RGB/depth history resets exactly at episode start."""
@@ -122,16 +163,14 @@ def extract(config, device):
     cfg = config['features']
     cache = Path(cfg['cache'])
     checkpoint = Path(cfg['checkpoint'])
-    sources, partitions, records, fingerprints = {}, {}, {}, {}
-    for split, key in [('train', 'source'), ('val', 'val_source')]:
-        sources[split], partitions[split], records[split], fingerprints[split] = snapshot(
-            cfg[key], cfg['max_episodes'])
-    keys = [{(scene_name(p), p.name) for p in partitions[split]} for split in ('train', 'val')]
-    if keys[0] & keys[1] or set(partitions['train']) & set(partitions['val']):
-        raise ValueError('Training and validation episodes overlap')
-    identity = dict(version=1, purpose='avwan_frozen_rl_episodes', checkpoint_sha256=sha256(checkpoint),
-                    sources={k: str(v) for k, v in sources.items()}, fingerprints=fingerprints,
-                    preprocessing='spatial_v3_two_frames_zero_start_fp32', max_episodes=cfg['max_episodes'])
+    source, paths, records, fingerprint = snapshot_sources(cfg['source'], cfg['max_episodes'])
+    source_identity = ([str(value) for value in source]
+                       if isinstance(source, list) else str(source))
+    identity = dict(version=2, purpose='avwan_frozen_rl_train_episodes',
+                    checkpoint_sha256=sha256(checkpoint), source=source_identity,
+                    fingerprint=fingerprint,
+                    preprocessing='spatial_v3_two_frames_zero_start_fp32',
+                    max_episodes=cfg['max_episodes'])
     marker = cache / 'manifest.json'
     pending = cache / 'identity.json'
     if pending.exists() and json.loads(pending.read_text()) != identity:
@@ -147,76 +186,77 @@ def extract(config, device):
         raise FileExistsError(f'Unrecognized nonempty feature directory: {cache}')
     cache.mkdir(parents=True, exist_ok=True)
     write_json(pending, identity)
-    write_json(cache / 'sources.json', records)
+    write_json(cache / 'sources.json', {'train': records})
     model = load_foundation(checkpoint, device)
-    manifest = dict(identity=identity, feature_dim=256, action_count=model.action_count, splits={})
+    manifest = dict(identity=identity, feature_dim=256, action_count=model.action_count,
+                    splits={'train': []})
     started = time.monotonic()
-    for split, paths in partitions.items():
-        folder = cache / split
-        folder.mkdir(exist_ok=True)
-        entries, work = [], []
-        for index, path in enumerate(paths):
-            relative = f'{split}/{index:06d}.npz'
-            entry = dict(path=relative, source=str(path.relative_to(sources[split])))
-            entries.append(entry)
-            target = cache / relative
-            if target.exists():
-                with np.load(target, allow_pickle=False) as data:
-                    entry.update(transitions=len(data['action']), bytes=target.stat().st_size)
-            else:
-                work.append((index, path))
-        # Bounded prefetch stores compact observations, not decoded whole datasets.
-        with ThreadPoolExecutor(max_workers=cfg['workers']) as pool:
-            iterator, futures = iter(work), deque()
+    split, folder = 'train', cache / 'train'
+    folder.mkdir(exist_ok=True)
+    entries, work = [], []
+    for index, path in enumerate(paths):
+        relative = f'{split}/{index:06d}.npz'
+        entry = dict(path=relative, source=records[index][0])
+        entries.append(entry)
+        target = cache / relative
+        if target.exists():
+            with np.load(target, allow_pickle=False) as data:
+                entry.update(transitions=len(data['action']), bytes=target.stat().st_size)
+        else:
+            work.append((index, path))
+    # Bounded prefetch stores compact observations, not decoded whole datasets.
+    with ThreadPoolExecutor(max_workers=cfg['workers']) as pool:
+        iterator, futures = iter(work), deque()
 
-            def submit():
-                item = next(iterator, None)
-                if item is not None:
-                    index, path = item
-                    futures.append((index, path, pool.submit(read_episode, path, model.action_count)))
+        def submit():
+            item = next(iterator, None)
+            if item is not None:
+                index, path = item
+                futures.append((index, path, pool.submit(read_episode, path, model.action_count)))
 
-            for _ in range(cfg['workers']):
+        for _ in range(cfg['workers']):
+            submit()
+        completed = len(paths) - len(work)
+        while futures:
+            group, indices = [], []
+            for _ in range(cfg['episode_batch_size']):
+                if not futures:
+                    break
+                index, path, future = futures.popleft()
+                group.append(future.result())
+                stat = path.stat()
+                if (stat.st_size, stat.st_mtime_ns) != tuple(records[index][1:]):
+                    raise RuntimeError(f'Source changed while extracting: {path}')
+                indices.append(index)
                 submit()
-            completed = len(paths) - len(work)
-            while futures:
-                group, indices = [], []
-                for _ in range(cfg['episode_batch_size']):
-                    if not futures:
-                        break
-                    index, path, future = futures.popleft()
-                    group.append(future.result())
-                    stat = path.stat()
-                    if (stat.st_size, stat.st_mtime_ns) != tuple(records[split][index][1:]):
-                        raise RuntimeError(f'Source changed while extracting: {path}')
-                    indices.append(index)
-                    submit()
-                for index, arrays in zip(indices, embed(model, group, cfg['batch_size'], device)):
-                    target = cache / entries[index]['path']
-                    temporary = target.with_suffix('.npz.tmp')
-                    with temporary.open('wb') as handle:
-                        np.savez(handle, **arrays)
-                    temporary.replace(target)
-                    entries[index].update(transitions=len(arrays['action']), bytes=target.stat().st_size)
-                completed += len(indices)
-                if completed % 100 < len(indices) or completed == len(paths):
-                    print(f'Extract {split}: {completed}/{len(paths)} episodes, '
-                          f'{time.monotonic()-started:.1f}s', flush=True)
-        manifest['splits'][split] = entries
+            for index, arrays in zip(indices, embed(model, group, cfg['batch_size'], device)):
+                target = cache / entries[index]['path']
+                temporary = target.with_suffix('.npz.tmp')
+                with temporary.open('wb') as handle:
+                    np.savez(handle, **arrays)
+                temporary.replace(target)
+                entries[index].update(transitions=len(arrays['action']), bytes=target.stat().st_size)
+            completed += len(indices)
+            if completed % 100 < len(indices) or completed == len(paths):
+                print(f'Extract {split}: {completed}/{len(paths)} episodes, '
+                      f'{time.monotonic()-started:.1f}s', flush=True)
+    manifest['splits'][split] = entries
     # Never publish a cache mixing snapshots if collection was still running.
-    for split in partitions:
-        if snapshot(sources[split], cfg['max_episodes'])[3] != fingerprints[split]:
-            raise RuntimeError('Source changed during extraction; use a new cache')
+    if snapshot_sources(cfg['source'], cfg['max_episodes'])[3] != fingerprint:
+        raise RuntimeError('Source changed during extraction; use a new cache')
     if sha256(checkpoint) != identity['checkpoint_sha256']:
         raise RuntimeError('Foundation checkpoint changed during extraction')
-    manifest['transitions'] = {k: sum(e['transitions'] for e in v) for k, v in manifest['splits'].items()}
+    manifest['transitions'] = {'train': sum(e['transitions'] for e in entries)}
     write_json(marker, manifest)
     print(f'Features complete: {manifest["transitions"]}', flush=True)
     return manifest
 
 
 def validate_cache(cache, manifest):
-    if manifest['identity']['purpose'] != 'avwan_frozen_rl_episodes':
+    if manifest['identity']['purpose'] != 'avwan_frozen_rl_train_episodes':
         raise ValueError('Not an offline RL feature cache')
+    if set(manifest['splits']) != {'train'}:
+        raise ValueError('Offline RL training cache must contain only the train split')
     for entries in manifest['splits'].values():
         for entry in entries:
             path = Path(cache) / entry['path']

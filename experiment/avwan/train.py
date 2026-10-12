@@ -19,7 +19,8 @@ def training_config(node):
     """Accept a plain YAML mapping or the resolved Habitat/YACS TRAIN node."""
     config = dict(seed=node['SEED'], data={k.lower(): v for k, v in node['DATA'].items()},
                   training={k.lower(): v for k, v in node.items()
-                            if k not in ('OPEN', 'STAGE', 'RESUME', 'SEED', 'DATA')},
+                            if k not in ('OPEN', 'STAGE', 'RESUME', 'SEED', 'DATA',
+                                         'MODE', 'OFFLINE_RL')},
                   stage=node['STAGE'], resume=node['RESUME'])
     for section, key in ((config['data'], 'source'), (config['data'], 'cache'), (config['training'], 'output')):
         section[key] = str((ROOT / Path(section[key]).expanduser()).resolve())
@@ -55,10 +56,10 @@ def run_training(config, stage=None, resume=None):
     stage = stage or config['stage']
     resume = config['resume'] if resume is None else resume
     if stage not in ('all', 'prepare', 'train'):
-        raise ValueError('TRAIN.STAGE must be all, prepare, or train')
+        raise ValueError('TRAIN.FOUNDATION.STAGE must be all, prepare, or train')
     validate(config)
     if stage == 'train' and not (Path(config['data']['cache']) / 'manifest.json').exists():
-        raise FileNotFoundError('No completed cache; set TRAIN.STAGE to all or prepare first')
+        raise FileNotFoundError('No completed cache; set TRAIN.FOUNDATION.STAGE to all or prepare first')
     manifest = prepare(config)
     if stage != 'prepare':
         from .training.trainer import train

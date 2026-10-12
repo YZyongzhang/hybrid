@@ -90,60 +90,126 @@ TASK:
 
 
 COLLECT:
-  OPEN: true
+  OPEN: false
   TYPE: greedy
   RESUME: true  # Skip scenes that already have collected data in TO_PATH.
-  TO_PATH: "/data/Getuanhui/avwan_multiple_greedy_val_heard"
+  TO_PATH: "/data/Getuanhui/avwan_multiple_greedy_every_1000"
 
-
-
-
+# TEST.OPEN takes precedence over TRAIN.OPEN and COLLECT.OPEN in run_avwan.py.
+TEST:
+  OPEN: true
+  OUTPUT: result/2026-10-12-current-foundation-offline-rl
+  CHECKPOINT: result/2026-10-12-current-foundation-offline-rl/seed_20261011_new_foundation/training/latest.pt
+  FOUNDATION: experiment/avwan/runs/every_scene_1000_10_12/best.pt
+  DEVICE: cuda:0
+  PREDICTION_INTERVAL: 5
+  SPLITS: [test_multiple, test_multiple_unheard]
+  SHARDS: 1
+  EPISODES_PER_PROCESS: 20
+  EVAL_SEED: 20260930
+  MAX_RSS_MB: 9000
 
 # TRAIN.OPEN=true selects training directly in run_avwan.py, before collection.
 # Relative DATA/OUTPUT/RESUME paths are rooted at experiment/avwan.
 TRAIN:
   OPEN: false
-  STAGE: all
-  RESUME: ''
-  SEED: 20260925
-  DATA:
-    SOURCE: /data/Getuanhui/avwan_telephone_greedy_train
-    VAL_SOURCE: /data/Getuanhui/avwan_telephone_greedy_val
-    CACHE: data_cache/telephone_train_val_spatial_v3
-    INPUTS:
-    - rgb
-    - depth
-    - spectrogram
-    - gm
-    - am
-    SHARD_SIZE: 512
-    CONVERT_WORKERS: 4
-    VAL_FRACTION: 0.1
-    SPLIT_BY: scene
-    MAX_EPISODES: 0
-  OUTPUT: runs/telephone_train_val_20260925
-  DEVICE: auto
-  EPOCHS: 30
-  BATCH_SIZE: 64
-  WORKERS: 4
-  PREFETCH_FACTOR: 2
-  PIN_MEMORY: true
-  CPU_THREADS: 4
-  LEARNING_RATE: 0.0003
-  WEIGHT_DECAY: 0.0
-  ACTION_LOSS_WEIGHT: 1.0
-  ANGLE_LOSS_WEIGHT: 1.0
-  GRAD_CLIP: 10.0
-  AMP: true
-  LOG_EVERY: 50
-  MAX_BATCHES: 0
-  TENSORBOARD: true
-  SAVE_TOP_K: 3
-
-
+  # run_avwan.py dispatches either foundation training or offline RL here.
+  MODE: offline_rl
+  FOUNDATION:
+    STAGE: all
+    RESUME: ''
+    SEED: 20261006
+    DATA:
+      SOURCE: /data/Getuanhui/avwan_multiple_greedy_every_1000
+      VAL_SOURCE: /data/Getuanhui/avwan_multiple_greedy_val_heard
+      CACHE: data_cache/multiple_train_val
+      INPUTS:
+      - rgb
+      - depth
+      - spectrogram
+      - gm
+      - am
+      SHARD_SIZE: 512
+      CONVERT_WORKERS: 4
+      VAL_FRACTION: 0.1
+      SPLIT_BY: scene
+      MAX_EPISODES: 0
+    OUTPUT: runs/every_scene_1000_10_12
+    DEVICE: auto
+    EPOCHS: 100
+    BATCH_SIZE: 64
+    WORKERS: 4
+    PREFETCH_FACTOR: 2
+    PIN_MEMORY: true
+    CPU_THREADS: 4
+    LEARNING_RATE: 0.0001
+    WEIGHT_DECAY: 0.0
+    ACTION_LOSS_WEIGHT: 1.0
+    ANGLE_LOSS_WEIGHT: 1.0
+    GRAD_CLIP: 10.0
+    AMP: true
+    LOG_EVERY: 50
+    MAX_BATCHES: 0
+    TENSORBOARD: true
+    SAVE_TOP_K: 3
+  OFFLINE_RL:
+    STAGE: all
+    FOUNDATION: experiment/avwan/runs/every_scene_1000_10_12/best.pt
+    PARENT: result/10-11/total/2026-10-03-unheard-generalization-study/exp013-ratio-sac-g0p01-prior-bc5/training/best_policy.pt
+    SOURCES:
+      # Raw collector episode directories. ADDITIONAL pools both original
+      # policy trajectories and expert recovery trajectories, in that order.
+      BASE: /data/getuanhui/avwan_multiple_greedy_every_1000
+      ADDITIONAL:
+      - /data/Getuanhui/avwan_stop_negative_recovery_20261004/policy
+      - /data/Getuanhui/avwan_stop_negative_recovery_20261004/recovery
+      VALIDATION: result/10-11/total/2026-10-03-unheard-generalization-study/validation_demonstrations
+    CACHES:
+      BASE: experiment/avwan/data_cache/2026-10-12-current-foundation-offline-rl/base-features
+      ADDITIONAL: experiment/avwan/data_cache/2026-10-12-current-foundation-offline-rl/correction-features
+      VALIDATION: experiment/avwan/data_cache/2026-10-12-current-foundation-offline-rl/validation-features
+    RUN:
+      OUTPUT: result/2026-10-12-current-foundation-offline-rl
+      NAME: seed_20261011_new_foundation
+      SEED: 20261011
+    EXTRACTION:
+      DEVICE: cuda:0
+      CPU_THREADS: 4
+      BATCH_SIZE: 64
+      EPISODE_BATCH_SIZE: 8
+      WORKERS: 4
+      MAX_EPISODES: 0
+      # true rebuilds each cache in a staging directory, then keeps the prior
+      # cache as <cache>.previous-<timestamp> before installing the new one.
+      REBUILD_CACHES: false
+    TRAINING:
+      DEVICE: cuda:0
+      CPU_THREADS: 4
+      EPOCHS: 20
+      STEPS_PER_EPOCH: 500
+      BATCH_SIZE: 32
+      SAMPLING: [16, 8, 8]
+      GAMMA: 0.01
+      BC_WEIGHT: 5.0
+      ACTOR_RL_WEIGHT: 1.0
+      CQL_WEIGHT: 1.0
+      CQL_TEMPERATURE: 1.0
+      ENTROPY_RATIO: 0.1
+      INITIAL_ALPHA: 0.03
+      TAU: 0.005
+      LEARNING_RATE: 0.0001
+      WEIGHT_DECAY: 0.0
+      GRAD_CLIP: 10.0
+      HIDDEN_DIM: 256
+      LSTM_LAYERS: 1
+      TERMINAL_MASK: true
+      FOUNDATION_PRIOR: true
+      FAILED_STOP_PENALTY: 1.0
+    VALIDATION:
+      EPISODES: 100
 DATASET:
   TYPE: "AudioNav"
-  SPLIT: "val_multiple"
+  SPLIT: "train_multiple"
   CONTENT_SCENES: ["*"]
   VERSION: "v1"
   SCENES_DIR: "data/scene_datasets/mp3d"
