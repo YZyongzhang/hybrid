@@ -152,8 +152,27 @@ TRAIN:
     MAX_BATCHES: 0
     TENSORBOARD: true
     SAVE_TOP_K: 3
+  TWO_STAGE_FOUNDATION:
+    OUTPUT: result/2026-10-13-staged-grl-reproduction
+    TRAIN_SOURCE: result/10-11/total/2026-10-11-large-train-snapshot
+    HEARD_VALIDATION_SOURCE: /data/Getuanhui/avwan_multiple_greedy_val_heard
+    AUDIO_EPOCHS: 5
+    ACTION_EPOCHS: 5
+    BATCH_SIZE: 8
+    WORKERS: 0
+    AUDIO_LEARNING_RATE: 0.0001
+    ACTION_LEARNING_RATE: 0.00003
+    GRL_SCALE: 0.2
+    DOMAIN_LOSS_WEIGHT: 1.0
+    SEED: 20261012
+    DEVICE: cuda:0
+    GPU_MEMORY_FRACTION: 0.22
+    CPU_THREADS: 2
+    MAX_RSS_MIB: 12000
+    MIN_AVAILABLE_GIB: 12.0
   OFFLINE_RL:
     STAGE: all
+    FRESH_FEATURES: false
     FOUNDATION: experiment/avwan/runs/every_scene_1000_10_12/best.pt
     PARENT: result/10-11/total/2026-10-03-unheard-generalization-study/exp013-ratio-sac-g0p01-prior-bc5/training/best_policy.pt
     SOURCES:

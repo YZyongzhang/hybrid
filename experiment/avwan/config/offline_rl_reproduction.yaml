@@ -1,0 +1,57 @@
+# Staged GRL offline RL training launched through run_avwan.py.
+TASK_CONFIG:
+  TEST:
+    OPEN: false
+  TRAIN:
+    OPEN: true
+    MODE: offline_rl
+    OFFLINE_RL:
+      STAGE: all
+      FRESH_FEATURES: true
+      FOUNDATION: result/2026-10-13-staged-grl-reproduction/foundation/action_stage/best.pt
+      PARENT: null
+      SOURCES:
+        BASE: /data/Getuanhui/avwan_multiple_greedy_every_1000
+        ADDITIONAL:
+          - /data/Getuanhui/avwan_stop_negative_recovery_20261004/policy
+          - /data/Getuanhui/avwan_stop_negative_recovery_20261004/recovery
+      CACHES:
+        BASE: result/2026-10-13-staged-grl-reproduction/offline/features/base
+        ADDITIONAL: result/2026-10-13-staged-grl-reproduction/offline/features/additional
+        VALIDATION: result/2026-10-13-staged-grl-reproduction/offline/features/validation
+      RUN:
+        OUTPUT: result/2026-10-13-staged-grl-reproduction/offline
+        NAME: seed_20261012_grl_staged_foundation
+        SEED: 20261012
+      EXTRACTION:
+        DEVICE: cuda:0
+        CPU_THREADS: 2
+        BATCH_SIZE: 8
+        EPISODE_BATCH_SIZE: 2
+        WORKERS: 1
+        MAX_EPISODES: 0
+      TRAINING:
+        DEVICE: cuda:0
+        CPU_THREADS: 2
+        EPOCHS: 20
+        STEPS_PER_EPOCH: 500
+        BATCH_SIZE: 32
+        SAMPLING: [16, 8, 8]
+        GAMMA: 0.01
+        BC_WEIGHT: 5.0
+        ACTOR_RL_WEIGHT: 1.0
+        CQL_WEIGHT: 1.0
+        CQL_TEMPERATURE: 1.0
+        ENTROPY_RATIO: 0.1
+        INITIAL_ALPHA: 0.03
+        TAU: 0.005
+        LEARNING_RATE: 0.0001
+        WEIGHT_DECAY: 0.0
+        GRAD_CLIP: 10.0
+        HIDDEN_DIM: 256
+        LSTM_LAYERS: 1
+        TERMINAL_MASK: true
+        FOUNDATION_PRIOR: true
+        FAILED_STOP_PENALTY: 1.0
+      VALIDATION:
+        EPISODES: 100

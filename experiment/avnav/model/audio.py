@@ -87,7 +87,12 @@ class AudioCRNN(nn.Module):
         layer_init(self.fnn)
 
     def forward(self, audio):
-        audio = (audio - audio.mean()) / (audio.std() + 1e-6)
+        if audio.ndim == 3:
+            audio = audio.unsqueeze(0)
+        dims = tuple(range(1, audio.ndim))
+        audio = (audio - audio.mean(dims, keepdim=True)) / (
+            audio.std(dims, keepdim=True, unbiased=False) + 1e-6
+        )
         audio = audio.permute(0, 3, 1, 2)
         x = self.cnn(audio)
         x = self.attn.forward(x, x, x)
@@ -95,7 +100,12 @@ class AudioCRNN(nn.Module):
         x = self.fnn(x)
         return x
     def encoder_forward(self, audio):
-        audio = (audio - audio.mean()) / (audio.std() + 1e-6)
+        if audio.ndim == 3:
+            audio = audio.unsqueeze(0)
+        dims = tuple(range(1, audio.ndim))
+        audio = (audio - audio.mean(dims, keepdim=True)) / (
+            audio.std(dims, keepdim=True, unbiased=False) + 1e-6
+        )
         audio = audio.permute(0, 3, 1, 2)
         x = self.cnn(audio)
         x = self.attn.forward(x, x, x)

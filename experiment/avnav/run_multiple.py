@@ -12,29 +12,40 @@ from configs.default import get_config
 from Dataset.dataset_avnav import AVNavDataset, convert_pickle_to_pt
 from experiment.avnav.config import resolve_path
 from experiment.avnav.run import run_conversion, run_training
-from experiment.avwan.model.hybrid import Network
+from experiment.avnav.model.hybrid import Network
 from experiment.avnav.train_class.hybrid_train import Train
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--stage", choices=("convert", "train", "evaluate", "all"), default="all")
+    parser.add_argument("--config", default=str(Path(__file__).parent / "config/experiment.yaml"))
+    parser.add_argument("--stage", choices=("convert", "train", "evaluate", "all"), default="train")
     args = parser.parse_args()
-    config_path = Path(__file__).parent / "config/multiple.yaml"
-    config = get_config(config_path)
+    config_path = Path(args.config).resolve()
+    config = get_config(str(config_path))
     result = resolve_path(config.TASK_CONFIG.TRAIN.SAVE_DIR)
     result.mkdir(parents=True, exist_ok=True)
     shutil.copy2(config_path, result / "config.yaml")
     unheard_raw = Path(config.TASK_CONFIG.PT.FROM_PATH).parent / "hybird(val_multiple_unheard)"
     unheard_pt = Path(config.TASK_CONFIG.PT.TO_PATH).parent / "val_unheard"
     if args.stage in ("all", "convert"):
-        run_conversion(config)
-        convert_pickle_to_pt(unheard_raw, unheard_pt, config.TASK_CONFIG.PT.SHARD_SIZE,
-                             config.TASK_CONFIG.PT.SHUFFLE, config.SEED)
+        for source, destination in (
+            (config.TASK_CONFIG.PT.FROM_PATH, config.TASK_CONFIG.PT.TO_PATH),
+            (config.TASK_CONFIG.PT.VAL_FROM_PATH, config.TASK_CONFIG.PT.VAL_TO_PATH),
+            (unheard_raw, unheard_pt),
+        ):
+            manifest = Path(destination) / "manifest.json"
+            if manifest.exists():
+                print(f"Reusing existing converted split: {destination}", flush=True)
+                continue
+            convert_pickle_to_pt(resolve_path(source), resolve_path(destination),
+                                 config.TASK_CONFIG.PT.SHARD_SIZE,
+                                 config.TASK_CONFIG.PT.SHUFFLE, config.SEED)
         print("All three splits converted successfully.", flush=True)
     if args.stage in ("all", "train"):
-        metadata = dict(python=platform.python_version(), pytorch=torch.__version__,
-                        cuda=torch.version.cuda, gpu=torch.cuda.get_device_name(0))
+        metadata = dict(python=platform.python_version(), pytorch=str(torch.__version__),
+                        cuda=torch.version.cuda,
+                        gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)
         (result / "environment.json").write_text(json.dumps(metadata, indent=2))
         run_training(config)
     if args.stage in ("all", "train", "evaluate"):

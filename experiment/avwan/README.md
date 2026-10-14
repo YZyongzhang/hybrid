@@ -48,15 +48,30 @@ python run_avwan.py
 - `TRAIN.OPEN: false` 且 `TEST.OPEN: false`：按照 `COLLECT.OPEN` 执行采集流程。
 - `TRAIN.MODE: offline_rl`：运行 `TRAIN.OFFLINE_RL` 中的特征提取、offline RL、审计和验证。
 - `TRAIN.MODE: foundation`：运行 `TRAIN.FOUNDATION` 中的监督式 foundation 训练；此模式的 `TRAIN.FOUNDATION.STAGE` 可设为 `all`、`prepare` 或 `train`。
+- `TRAIN.MODE: foundation_two_stage`：运行 GRL 音频阶段和冻结音频后的动作阶段，仅用 heard 验证集选择检查点。参数位于 `TRAIN.TWO_STAGE_FOUNDATION`；预设启动文件为 `config/foundation_two_stage.yaml`。
 - `TRAIN.OFFLINE_RL.STAGE`：可设为 `all`、`extract`、`train`、`audit` 或 `validate`，便于中断后单独续跑某一阶段。
 
-完整测试集评估由根级 `TEST` 配置控制，默认评估 `test_multiple` 和 `test_multiple_unheard`，每个 split 覆盖其全部 1,000 个 episode。测试环境直接读取 `BASE_TASK_CONFIG_PATH` 指向的 `audiogoal.yaml`；测试专属的 `PREDICTION_INTERVAL` 等参数在根级 `TEST` 中配置。将 `TEST.OPEN` 设为 `true` 并执行 `python run_avwan.py`，会只启动测试，不会进入训练或采集：
+从项目根目录直接启动两阶段 foundation 训练：
 
 ```bash
-python run_avwan.py
+python run_avwan.py --config experiment/avwan/config/foundation_two_stage.yaml
 ```
 
-结果写入 `TEST.OUTPUT/full_test/`，包括每个 split 的 SPL、成功率和汇总报告。
+staged GRL foundation 完成后，可通过离线 RL 复现配置启动 SAC-CQL、数据审计和验证：
+
+```bash
+python run_avwan.py --config experiment/avwan/config/offline_rl_reproduction.yaml
+```
+
+该配置将 `FRESH_FEATURES` 设为 true；运行 `STAGE: all` 时，会在本轮输出目录中重建特征后再开始训练。
+
+staged GRL + offline RL 复现的完整测试配置位于 `config/test_staged_grl.yaml`。该配置评估 `test_multiple` 和 `test_multiple_unheard`，每个 split 覆盖全部 1,000 个 episode，并指向本轮的 `best_policy.pt` 与 action-stage foundation checkpoint。从项目根目录运行：
+
+```bash
+python run_avwan.py --config experiment/avwan/config/test_staged_grl.yaml
+```
+
+评估结果写入 `result/2026-10-13-staged-grl-reproduction/full_test/`，包括每个 split 的 SPL、成功率和汇总报告 `report.json`。若更换了输出目录或 checkpoint，请同步修改此测试配置中的 `OUTPUT`、`CHECKPOINT` 和 `FOUNDATION`。
 
 `TRAIN.OFFLINE_RL` 中的相对路径以仓库根目录为基准。提取完成的缓存会自动复用；训练目标目录已有未完成 checkpoint 时会从中续训。
 

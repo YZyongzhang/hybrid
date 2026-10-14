@@ -135,7 +135,7 @@ class Train:
             )
 
             save_path = f"{self.save_dir}/model_epoch_{ep + 1}.pth"
-            # torch.save(self.train_model.state_dict(), save_path)
+            torch.save(self.train_model.state_dict(), save_path)
             tqdm.write(f"Saved model checkpoint to {save_path}")
             if validation["total_loss"] < best_val_loss:
                 best_val_loss = validation["total_loss"]

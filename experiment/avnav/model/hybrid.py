@@ -134,7 +134,10 @@ class Network(nn.Module):
 
     def _action_embedding(self, audio, rgb, depth):
         audio, rgbd = self._prepare_inputs(audio, rgb, depth)
-        audio = (audio - audio.mean()) / (audio.std() + 1e-6)
+        audio_dims = tuple(range(1, audio.ndim))
+        audio = (audio - audio.mean(audio_dims, keepdim=True)) / (
+            audio.std(audio_dims, keepdim=True, unbiased=False) + 1e-6
+        )
         
         audio_encoder = self.audio_encoder.encoder_forward(audio)
         visual_cnn = self.visual_encoder(rgbd)
@@ -173,7 +176,6 @@ class Network(nn.Module):
 
     def embedding_forward(self, audio , rgb , depth):
         embedding = self._action_embedding(audio, rgb, depth)
-        embedding = embedding.squeeze(0)
         return  embedding
     
     def embedding_forward_attention(self, audio , rgb , depth):
@@ -188,7 +190,10 @@ class Network(nn.Module):
         depth = depth.permute(0,3, 1, 2)
 
         rgbd = torch.cat([rgb, depth], dim=1)
-        audio = (audio - audio.mean()) / (audio.std() + 1e-6)
+        audio_dims = tuple(range(1, audio.ndim))
+        audio = (audio - audio.mean(audio_dims, keepdim=True)) / (
+            audio.std(audio_dims, keepdim=True, unbiased=False) + 1e-6
+        )
         
         
         audio_encoder = self.audio_encoder.encoder_forward(audio)

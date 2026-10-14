@@ -45,12 +45,17 @@ def train(args):
                  additional_cache=args.additional_cache,
                  validation_cache=args.validation_cache,
                   training_overrides=json.loads(args.training_overrides),
-                  device=args.device, cpu_threads=args.cpu_threads)
+                 random_initialization=args.random_initialization,
+                  device=args.device, cpu_threads=args.cpu_threads,
+                  gpu_memory_fraction=args.gpu_memory_fraction,
+                  max_rss_mib=args.max_rss_mb,
+                  min_available_gib=args.min_available_gib)
     checkpoint = args.output / args.name / 'training/latest.pt'
+    parent_path = args.parent or (None if args.random_initialization else PARENT)
     print(json.dumps({'checkpoint': str(checkpoint), 'sha256': digest(checkpoint),
                       'foundation': str(args.foundation), 'foundation_sha256': digest(args.foundation),
-                      'parent': str(args.parent or PARENT),
-                      'parent_sha256': digest(args.parent or PARENT)}, indent=2))
+                      'parent': str(parent_path) if parent_path else None,
+                      'parent_sha256': digest(parent_path) if parent_path else None}, indent=2))
 
 
 def episode_key(path):
@@ -80,9 +85,13 @@ def audit(args):
         raise ValueError('Invalid SAC-CQL training configuration')
     if state['signature']['architecture'] != 'independent_lstm_discrete_sac_cql_v1':
         raise ValueError('Checkpoint is not the recurrent SAC-CQL actor')
-    parent_checkpoint = Path(cfg['stop_pipeline']['parent'])
-    if state['initialization_checkpoint_sha256'] != digest(parent_checkpoint):
-        raise ValueError('Parent actor hash does not match the training checkpoint')
+    parent_value = cfg['stop_pipeline'].get('parent')
+    parent_checkpoint = Path(parent_value) if parent_value else None
+    if parent_checkpoint is not None:
+        if state['initialization_checkpoint_sha256'] != digest(parent_checkpoint):
+            raise ValueError('Parent actor hash does not match the training checkpoint')
+    elif state.get('initialization_checkpoint_sha256') is not None:
+        raise ValueError('Expected random actor initialization, found an external parent checkpoint')
     if state['signature']['stop_annotations_sha256'] != digest(ANNOTATIONS):
         raise ValueError('STOP/recovery annotation hash does not match the checkpoint')
     expert_annotations = Path('/data/Getuanhui/avwan_stop_negative_recovery_20261004/expert_bc_annotations.json')
@@ -175,7 +184,7 @@ def audit(args):
               'foundation_sha256': digest(args.foundation),
               'training_episode_keys': len(train_keys), 'base_cache': str(base_cache),
               'additional_cache': str(additional_cache), 'validation_cache': str(validation_cache),
-              'parent_checkpoint_sha256': digest(parent_checkpoint),
+              'parent_checkpoint_sha256': digest(parent_checkpoint) if parent_checkpoint is not None else None,
               'test_populations': populations,
               'actor': 'masked argmax over trained SAC actor logits',
               'revisit_selector_enabled': False, 'expert_action_at_evaluation': False,
@@ -210,6 +219,8 @@ def evaluate_split(args, split, checkpoint):
                    '--shards', str(args.shards), '--shard-index', str(shard),
                    '--max-new-episodes', str(args.episodes_per_process),
                    '--max-rss-mb', str(args.max_rss_mb), '--resume']
+            if args.gpu_memory_fraction:
+                cmd.extend(['--gpu-memory-fraction', str(args.gpu_memory_fraction)])
             if args.evaluation_config:
                 cmd.extend(['--config', str(args.evaluation_config)])
             print(' '.join(cmd), flush=True)
@@ -272,6 +283,8 @@ def validate(args):
                '--seed', str(args.eval_seed), '--device', args.device,
                '--max-new-episodes', str(args.episodes_per_process),
                '--max-rss-mb', str(args.max_rss_mb), '--resume']
+        if args.gpu_memory_fraction:
+            cmd.extend(['--gpu-memory-fraction', str(args.gpu_memory_fraction)])
         subprocess.run(cmd, cwd=ROOT, check=True)
     run = json.loads((folder / 'run.json').read_text())
     rows = [json.loads(line) for line in (folder / 'episodes.jsonl').open()]
@@ -328,9 +341,13 @@ def main():
     p.add_argument('--training-overrides', default='{}',
                    help='JSON object overriding SAC-CQL training parameters from the parent config')
     p.add_argument('--cpu-threads', type=int, default=4)
+    p.add_argument('--gpu-memory-fraction', type=float, default=.12)
+    p.add_argument('--min-available-gib', type=float, default=12.)
     p.add_argument('--checkpoint', type=Path)
     p.add_argument('--foundation', type=Path, default=FOUNDATION)
     p.add_argument('--parent', type=Path, help='Actor initialization checkpoint for training')
+    p.add_argument('--random-initialization', action='store_true',
+                   help='Initialize the SAC-CQL actor and critics randomly instead of loading PARENT')
     p.add_argument('--additional-cache', type=Path,
                    help='Frozen features for failed STOP and recovery trajectories')
     p.add_argument('--validation-cache', type=Path,
@@ -347,7 +364,7 @@ def main():
     p.add_argument('--validation-episodes', type=int, default=100)
     p.add_argument('--validation-split', choices=('val_multiple', 'val_multiple_unheard'),
                    default='val_multiple_unheard')
-    p.add_argument('--max-rss-mb', type=int, default=9000)
+    p.add_argument('--max-rss-mb', type=int, default=12000)
     p.add_argument('--splits', nargs='+', choices=tuple(EXPECTED), default=tuple(EXPECTED),
                    help='Evaluate one split per process to run heard and unheard concurrently')
     args = p.parse_args()
@@ -368,6 +385,12 @@ def main():
     if min(args.shards, args.episodes_per_process, args.validation_episodes,
            args.steps_per_epoch, args.epochs) < 1:
         p.error('shards, process episodes, validation episodes, training steps, and epochs must be positive')
+    if not 0 < args.gpu_memory_fraction <= 1:
+        p.error('--gpu-memory-fraction must be in (0, 1]')
+    if args.max_rss_mb < 1 or args.min_available_gib < 0:
+        p.error('Memory thresholds must be positive/nonnegative')
+    if not 0 <= args.gpu_memory_fraction <= 1:
+        p.error('--gpu-memory-fraction must be between 0 and 1')
     if args.shard_index is not None and not 0 <= args.shard_index < args.shards:
         p.error('--shard-index must be between 0 and --shards - 1')
     {'train': train, 'audit': audit, 'validate': validate,

@@ -6,6 +6,7 @@ import json
 import math
 import pickle
 import random
+import resource
 import shutil
 import time
 from pathlib import Path
@@ -21,6 +22,16 @@ from .offline.features import extract,load_foundation
 from .offline.dataset import FeatureEpisodes,collate_episodes
 from .offline.sac_cql import RecurrentSACCQL,masked_policy
 from .offline.trainer import save_checkpoint
+
+
+def memory_guard(max_rss_mib=12000, min_available_gib=12.0):
+    available_kib = int(next(line.split()[1] for line in Path('/proc/meminfo').read_text().splitlines()
+                             if line.startswith('MemAvailable:')))
+    available_gib = available_kib / (1024 * 1024)
+    rss_mib = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+    if rss_mib >= max_rss_mib or available_gib <= min_available_gib:
+        raise MemoryError(f'Resource guard stopped offline RL: RSS={rss_mib:.0f} MiB, '
+                          f'available RAM={available_gib:.1f} GiB')
 
 
 def annotated_episode(ep, failed_stop, penalty, expert_control=None):
@@ -142,18 +153,38 @@ def validate(model,dataset,device):
 
 def train(name,mode,penalty,base_cache=None,steps_per_epoch=186,epochs=40,sampling=None,
           foundation_checkpoint=None,parent_checkpoint=None,additional_cache=None,validation_cache=None,
-          training_overrides=None,device='cuda:0',cpu_threads=4):
+          training_overrides=None,device='cuda:0',cpu_threads=4,gpu_memory_fraction=.12,
+          max_rss_mib=12000,min_available_gib=12.0,random_initialization=False):
     folder=OUT/name;folder.mkdir(exist_ok=True);output=folder/'training'
     if not isinstance(cpu_threads, int) or cpu_threads < 1:
         raise ValueError('cpu_threads must be a positive integer')
     custom_base_cache=base_cache is not None
     base_cache=Path(base_cache).resolve() if base_cache is not None else BASE_CACHE
     foundation_checkpoint=Path(foundation_checkpoint).resolve() if foundation_checkpoint is not None else FOUNDATION
-    parent_checkpoint=Path(parent_checkpoint).resolve() if parent_checkpoint is not None else PARENT
+    parent_checkpoint=(Path(parent_checkpoint).resolve() if parent_checkpoint is not None
+                       else (None if random_initialization else PARENT))
     additional_cache=Path(additional_cache).resolve() if additional_cache is not None else DATA/'frozen_ratio_features'
     validation_cache=Path(validation_cache).resolve() if validation_cache is not None else additional_cache
     random.seed(TRAIN_SEED);np.random.seed(TRAIN_SEED);torch.manual_seed(TRAIN_SEED);torch.set_num_threads(cpu_threads)
-    parent=torch.load(parent_checkpoint,map_location='cpu',weights_only=False);cfg=copy.deepcopy(parent['config'])
+    memory_guard(max_rss_mib,min_available_gib)
+    if parent_checkpoint is None:
+        parent=None
+        cfg={
+            'seed': TRAIN_SEED,
+            'features': {},
+            'training': {
+                'epochs': epochs, 'output': str(output), 'batch_size': 32,
+                'hidden_dim': 256, 'lstm_layers': 1, 'learning_rate': 1e-4,
+                'gamma': .01, 'initial_alpha': .03, 'entropy_ratio': .1,
+                'tau': .005, 'cql_weight': 1., 'cql_temperature': 1.,
+                'grad_clip': 10., 'log_every': 100, 'tensorboard': False,
+                'terminal_mask': True, 'foundation_prior': True,
+                'bc_weight': 5., 'actor_rl_weight': 1., 'weight_decay': 0.,
+            },
+        }
+    else:
+        parent=torch.load(parent_checkpoint,map_location='cpu',weights_only=False)
+        cfg=copy.deepcopy(parent['config'])
     cfg['seed']=TRAIN_SEED;cfg['training'].update(epochs=epochs,output=str(output))
     overrides = dict(training_overrides or {})
     allowed = {'batch_size','gamma','bc_weight','actor_rl_weight','cql_weight','cql_temperature',
@@ -163,8 +194,9 @@ def train(name,mode,penalty,base_cache=None,steps_per_epoch=186,epochs=40,sampli
     if unknown:
         raise ValueError(f'Unsupported SAC-CQL training overrides: {sorted(unknown)}')
     cfg['training'].update(overrides)
-    if cfg['training']['hidden_dim'] != parent['config']['training']['hidden_dim'] or \
-            cfg['training']['lstm_layers'] != parent['config']['training']['lstm_layers']:
+    if parent is not None and (
+            cfg['training']['hidden_dim'] != parent['config']['training']['hidden_dim'] or
+            cfg['training']['lstm_layers'] != parent['config']['training']['lstm_layers']):
         raise ValueError('hidden_dim and lstm_layers must match the parent actor architecture')
     for key in ('gamma', 'entropy_ratio'):
         if not 0 <= cfg['training'][key] <= 1:
@@ -194,9 +226,15 @@ def train(name,mode,penalty,base_cache=None,steps_per_epoch=186,epochs=40,sampli
         raise ValueError('failed STOP penalty must be nonnegative')
     cfg['stop_pipeline']=dict(mode=mode,failed_stop_penalty=penalty,bc_masked=True,parent=str(parent_checkpoint),
         sampling=sampling,steps_per_epoch=steps_per_epoch,
+        resource_limits=dict(gpu_memory_fraction=gpu_memory_fraction,
+                             max_rss_mib=max_rss_mib,
+                             min_available_gib=min_available_gib),
         effective_optimizer=f"Adam, learning_rate={cfg['training']['learning_rate']}, "
                              f"weight_decay={cfg['training'].get('weight_decay', 0.)}",
         checkpoint_selection='balanced STOP NLL + 0.1*action NLL on independent validation demonstrations')
+    cfg['stop_pipeline']['parent'] = str(parent_checkpoint) if parent_checkpoint is not None else None
+    cfg['stop_pipeline']['actor_initialization'] = ('parent_checkpoint' if parent_checkpoint is not None
+                                                    else 'random')
     if custom_base_cache:
         cfg['stop_pipeline']['base_cache']=str(base_cache)
     if additional_cache != DATA/'frozen_ratio_features':
@@ -207,6 +245,7 @@ def train(name,mode,penalty,base_cache=None,steps_per_epoch=186,epochs=40,sampli
         cfg['stop_pipeline']['prior_replaced_with_foundation_sha256']=sha(foundation_checkpoint)
     pools,val,manifest=load_pools(penalty,expert_only,base_cache,additional_cache,
                                   validation_cache,foundation_checkpoint)
+    memory_guard(max_rss_mib,min_available_gib)
     if expert_only:
         cfg['stop_pipeline']['new_data_bc_scope']='only actually executed expert actions; original pool unchanged'
         cfg['stop_pipeline']['expert_annotation_sha256']=sha(DATA/'expert_bc_annotations.json')
@@ -216,18 +255,30 @@ def train(name,mode,penalty,base_cache=None,steps_per_epoch=186,epochs=40,sampli
             raise ValueError('This run is already complete with different settings; change RUN.NAME for a new run')
         print(f'Run already complete with matching configuration: {output}', flush=True)
         return
-    signature=copy.deepcopy(parent['signature']);signature['features']=copy.deepcopy(manifest['identity'])
+    if parent is not None:
+        signature=copy.deepcopy(parent['signature'])
+    else:
+        signature={'architecture':'independent_lstm_discrete_sac_cql_v1',
+                   'feature_dim':manifest['feature_dim'],
+                   'action_count':manifest['action_count']}
+    signature['features']=copy.deepcopy(manifest['identity'])
     signature['stop_annotations_sha256']=sha(DATA/'training_annotations.json')
     if expert_only:signature['expert_bc_annotation_sha256']=cfg['stop_pipeline']['expert_annotation_sha256']
     device=torch.device(device)
     if device.type == 'cuda' and not torch.cuda.is_available():
         raise RuntimeError('CUDA requested for offline RL but is unavailable')
+    if device.type == 'cuda':
+        if not 0 < gpu_memory_fraction <= 1:
+            raise ValueError('gpu_memory_fraction must be in (0, 1]')
+        torch.cuda.set_device(device)
+        torch.cuda.set_per_process_memory_fraction(gpu_memory_fraction,device)
     model=RecurrentSACCQL(signature['feature_dim'],signature['action_count'],cfg['training']).to(device)
-    incompatible = model.load_state_dict(parent['model'], strict=cfg['training']['foundation_prior'])
-    if not cfg['training']['foundation_prior']:
-        unexpected = [key for key in incompatible.unexpected_keys if not key.startswith('actor.prior.')]
-        if incompatible.missing_keys or unexpected:
-            raise ValueError(f'Parent actor weights do not match configured architecture: {incompatible}')
+    if parent is not None:
+        incompatible = model.load_state_dict(parent['model'], strict=cfg['training']['foundation_prior'])
+        if not cfg['training']['foundation_prior']:
+            unexpected = [key for key in incompatible.unexpected_keys if not key.startswith('actor.prior.')]
+            if incompatible.missing_keys or unexpected:
+                raise ValueError(f'Parent actor weights do not match configured architecture: {incompatible}')
     if cfg['training']['foundation_prior']:
         fresh=load_foundation(foundation_checkpoint,device)
         if model.actor.prior is None:
@@ -236,6 +287,7 @@ def train(name,mode,penalty,base_cache=None,steps_per_epoch=186,epochs=40,sampli
         del fresh
     with torch.no_grad():
         model.log_alpha.fill_(math.log(cfg['training']['initial_alpha']))
+    initialization_checkpoint_sha256 = sha(parent_checkpoint) if parent_checkpoint is not None else None
     optimizers=model.make_optimizers();output.mkdir(exist_ok=True)
     write(output/'config.json',cfg);(folder/'config.yaml').write_text(yaml.safe_dump(cfg))
     write(output/'dataset.json',dict(base_cache=str(base_cache),new_cache=str(additional_cache),
@@ -245,7 +297,8 @@ def train(name,mode,penalty,base_cache=None,steps_per_epoch=186,epochs=40,sampli
     def checkpoint(epoch,metrics,path):
         save_checkpoint(path,dict(epoch=epoch,model=model.state_dict(),signature=signature,config=cfg,
             validation=metrics,best_score=best,optimizers={k:v.state_dict() for k,v in optimizers.items()},
-            initialization_checkpoint_sha256=sha(parent_checkpoint),selection=cfg['stop_pipeline']['checkpoint_selection']))
+            initialization_checkpoint_sha256=initialization_checkpoint_sha256,
+            selection=cfg['stop_pipeline']['checkpoint_selection']))
     if (output/'latest.pt').exists():
         state=torch.load(output/'latest.pt',map_location=device,weights_only=False);assert state['config']==cfg
         model.load_state_dict(state['model']);epoch_start=state['epoch'];best=state['best_score']
@@ -273,6 +326,7 @@ def train(name,mode,penalty,base_cache=None,steps_per_epoch=186,epochs=40,sampli
         record=dict(epoch=epoch,train=training,val=metrics)
         with (output/'metrics.jsonl').open('a') as f:f.write(json.dumps(record)+'\n')
         print(json.dumps(record),flush=True)
+        memory_guard(max_rss_mib,min_available_gib)
     write(output/'completed.json',dict(epochs=epochs,best_score=best,completed_at=now()))
     write(folder/'status.json',dict(status='trained',completed_at=now()))
 

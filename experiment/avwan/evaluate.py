@@ -116,6 +116,11 @@ def evaluate(args):
     torch.manual_seed(args.seed)
     torch.set_num_threads(2)
     device = torch.device(args.device)
+    gpu_memory_fraction = getattr(args, 'gpu_memory_fraction', 0.)
+    if device.type == 'cuda' and gpu_memory_fraction:
+        if not 0 < gpu_memory_fraction <= 1:
+            raise ValueError('--gpu-memory-fraction must be in (0, 1]')
+        torch.cuda.set_per_process_memory_fraction(gpu_memory_fraction, device)
     checkpoint = Path(args.checkpoint).resolve()
     state = torch.load(checkpoint, map_location='cpu', weights_only=False)
     foundation_path = getattr(args, 'foundation_checkpoint', None)
@@ -273,6 +278,8 @@ def main():
                         help='End this process after this many new episodes; resume to continue')
     parser.add_argument('--max-rss-mb', type=int,
                         help='End between episodes when peak process RSS reaches this many MiB')
+    parser.add_argument('--gpu-memory-fraction', type=float,
+                        help='Cap PyTorch CUDA allocator usage as a fraction of total GPU memory')
     parser.add_argument('--profile', help='Optional cProfile output for rollout performance diagnosis')
     args = parser.parse_args()
     settings_path = Path(args.settings).expanduser()

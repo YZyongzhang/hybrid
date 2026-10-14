@@ -1,0 +1,14 @@
+# Full test evaluation for the staged GRL + offline RL reproduction.
+TASK_CONFIG:
+  TEST:
+    OPEN: true
+    OUTPUT: result/2026-10-13-staged-grl-reproduction
+    CHECKPOINT: result/2026-10-13-staged-grl-reproduction/offline/seed_20261012_grl_staged_foundation/training/best_policy.pt
+    FOUNDATION: result/2026-10-13-staged-grl-reproduction/foundation/action_stage/best.pt
+    DEVICE: cuda:0
+    PREDICTION_INTERVAL: 5
+    SPLITS: [test_multiple_unheard , test_multiple]
+    SHARDS: 1
+    EPISODES_PER_PROCESS: 20
+    EVAL_SEED: 20260930
+    MAX_RSS_MB: 9000

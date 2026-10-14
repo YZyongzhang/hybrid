@@ -1,7 +1,7 @@
 """Run the refined heard/unheard SAC-CQL recipe from one YAML configuration."""
 import argparse
-from datetime import datetime
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -39,13 +39,13 @@ def prepare_config(cfg):
         cfg["sources"][key] = ([resolve(path) for path in value]
                                if isinstance(value, list) else resolve(value))
     cfg["foundation"] = resolve(cfg["foundation"])
-    cfg["parent"] = resolve(cfg["parent"])
+    cfg["parent"] = resolve(cfg["parent"]) if cfg.get("parent") else None
     cfg["run"]["output"].mkdir(parents=True, exist_ok=True)
-    if not isinstance(cfg["extraction"].get("rebuild_caches", False), bool):
-        raise ValueError("extraction.rebuild_caches must be true or false")
     if len(cfg["training"]["sampling"]) != 3 or sum(cfg["training"]["sampling"]) != 32:
         raise ValueError("training.sampling must contain three counts totaling 32")
     for label, key in (("foundation", "foundation"), ("parent", "parent")):
+        if cfg[key] is None and key == "parent":
+            continue
         if not cfg[key].is_file():
             raise FileNotFoundError(f"{label} checkpoint not found: {cfg[key]}")
     for key in ("base", "additional", "validation"):
@@ -56,42 +56,32 @@ def prepare_config(cfg):
     return cfg
 
 
-def backup_name(path, label="previous"):
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    candidate = path.with_name(f"{path.name}.{label}-{stamp}")
-    suffix = 1
-    while candidate.exists():
-        candidate = path.with_name(f"{path.name}.{label}-{stamp}-{suffix}")
-        suffix += 1
-    return candidate
-
-
-def install_rebuilt_cache(staging, cache):
-    backup = None
-    if cache.exists():
-        backup = backup_name(cache)
-        cache.replace(backup)
-    try:
-        staging.replace(cache)
-    except Exception:
-        if backup is not None and not cache.exists():
-            backup.replace(cache)
-        raise
-    if backup is not None:
-        print(f"Previous cache preserved at {backup}", flush=True)
-
-
-def extract_caches(cfg):
+def extract_caches(cfg, fresh=False):
     settings = cfg["extraction"]
     if settings["device"].startswith("cuda") and not torch.cuda.is_available():
         raise RuntimeError("CUDA is unavailable; set extraction.device to cpu in the YAML")
     device = torch.device(settings["device"])
     torch.set_num_threads(settings["cpu_threads"])
-    rebuild = settings.get("rebuild_caches", False)
-    staged_caches = []
+    if device.type == "cuda":
+        fraction = settings.get("gpu_memory_fraction", 0.15)
+        if not 0 < fraction <= 1:
+            raise ValueError("extraction.gpu_memory_fraction must be in (0, 1]")
+        torch.cuda.set_per_process_memory_fraction(fraction, device)
+    available_gib = int(next(line.split()[1] for line in Path('/proc/meminfo').read_text().splitlines()
+                             if line.startswith('MemAvailable:'))) / (1024 * 1024)
+    if available_gib < settings.get("min_available_gib", 12):
+        raise MemoryError(f"Stopping feature extraction with only {available_gib:.1f} GiB RAM available")
     for key in ("base", "additional", "validation"):
         cache = cfg["caches"][key]
-        target = cache.with_name(cache.name + ".rebuild") if rebuild else cache
+        if fresh:
+            try:
+                cache.relative_to(cfg["run"]["output"])
+            except ValueError as error:
+                raise ValueError(
+                    f"Fresh feature output must be inside this run directory: {cache}") from error
+            if cache.exists():
+                shutil.rmtree(cache)
+        target = cache
         source = cfg["sources"][key]
         feature_cfg = {
             "features": {
@@ -106,23 +96,9 @@ def extract_caches(cfg):
             }
         }
         print(f"Extracting {key} features -> {target}", flush=True)
-        try:
-            extract(feature_cfg, device)
-        except ValueError as error:
-            # A previous interrupted rebuild may have used an older source or
-            # foundation. Preserve it and retry in a clean staging directory.
-            if not (rebuild and "Feature cache checkpoint/source changed" in str(error)):
-                raise
-            stale = backup_name(target, "stale")
-            target.replace(stale)
-            print(f"Stale rebuild cache preserved at {stale}", flush=True)
-            extract(feature_cfg, device)
+        extract(feature_cfg, device)
         if device.type == "cuda":
             torch.cuda.empty_cache()
-        if rebuild:
-            staged_caches.append((target, cache))
-    for staging, cache in staged_caches:
-        install_rebuilt_cache(staging, cache)
 
 
 def run_module(module, *args):
@@ -134,20 +110,29 @@ def train(cfg):
     run, training = cfg["run"], cfg["training"]
     overrides = {key: value for key, value in training.items()
                  if key not in {"device", "cpu_threads", "epochs", "steps_per_epoch",
-                                "sampling", "failed_stop_penalty"}}
-    run_module(
+                                "sampling", "failed_stop_penalty", "gpu_memory_fraction",
+                                "max_rss_mib", "min_available_gib"}}
+    command = [
         "experiment.avwan.reproduce_heard_unheard", "train",
         "--output", run["output"], "--name", run["name"], "--seed", run["seed"],
         "--device", training["device"], "--cpu-threads", training["cpu_threads"],
-        "--foundation", cfg["foundation"], "--parent", cfg["parent"],
+        "--foundation", cfg["foundation"],
         "--base-cache", cfg["caches"]["base"],
         "--additional-cache", cfg["caches"]["additional"],
         "--validation-cache", cfg["caches"]["validation"],
         "--steps-per-epoch", training["steps_per_epoch"],
         "--epochs", training["epochs"], "--sampling", *training["sampling"],
         "--failed-stop-penalty", training["failed_stop_penalty"],
+        "--gpu-memory-fraction", training.get("gpu_memory_fraction", 0.12),
+        "--max-rss-mb", training.get("max_rss_mib", 12000),
+        "--min-available-gib", training.get("min_available_gib", 12),
         "--training-overrides", json.dumps(overrides, separators=(",", ":")),
-    )
+    ]
+    if cfg["parent"] is None:
+        command.append("--random-initialization")
+    else:
+        command.extend(["--parent", cfg["parent"]])
+    run_module(*command)
 
 
 def audit(cfg):
@@ -169,12 +154,12 @@ def validate(cfg):
         )
 
 
-def run_config(config, stage="all"):
+def run_config(config, stage="all", fresh_features=False):
     cfg = prepare_config(config)
     if stage not in ("all", "extract", "train", "audit", "validate"):
         raise ValueError("OFFLINE_RL.STAGE must be all, extract, train, audit, or validate")
     if stage in ("all", "extract"):
-        extract_caches(cfg)
+        extract_caches(cfg, fresh=fresh_features)
     if stage in ("all", "train"):
         train(cfg)
     if stage in ("all", "audit"):
@@ -185,7 +170,7 @@ def run_config(config, stage="all"):
 
 def run_from_node(node):
     stage = str(node.STAGE).lower()
-    run_config(node, stage)
+    run_config(node, stage, fresh_features=bool(node.get("FRESH_FEATURES", False)))
 
 
 def load_config(config_path):
@@ -193,7 +178,7 @@ def load_config(config_path):
     if "TASK_CONFIG" in value:
         value = value["TASK_CONFIG"]
     value = value.get("TRAIN", value)
-    value = value["OFFLINE_RL"]
+    value = value.get("OFFLINE_RL", value)
     return plain_config(value)
 
 
@@ -201,8 +186,11 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default=str(ROOT / "experiment/avwan/config/audiogoal.yaml"))
     parser.add_argument("--stage", choices=("all", "extract", "train", "audit", "validate"), default="all")
+    parser.add_argument("--fresh-features", action="store_true",
+                        help="Delete this run's derived features and extract them again from raw episodes")
     args = parser.parse_args(argv)
-    run_config(load_config(Path(args.config).expanduser().resolve()), args.stage)
+    run_config(load_config(Path(args.config).expanduser().resolve()), args.stage,
+               args.fresh_features)
 
 
 if __name__ == "__main__":

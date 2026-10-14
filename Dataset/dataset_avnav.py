@@ -128,11 +128,12 @@ def load_two_frame_pt(cls, path, config):
 
 class AVNavDataset(Dataset):
     """Return (audio, rgb, depth, angle_degrees, action) with an LRU shard cache."""
-    def __init__(self, path, cache_size=2):
+    def __init__(self, path, cache_size=2, include_sound_ids=False):
         if cache_size < 1:
             raise ValueError("CACHE_SIZE must be positive")
         self.files = list(map(Path, path)) if isinstance(path, (list, tuple)) else get_files(path, (".pt",))
         self.cache_size = cache_size
+        self.include_sound_ids = bool(include_sound_ids)
         self._cache = OrderedDict()
         self.ends = []
         total = 0
@@ -183,8 +184,13 @@ class AVNavDataset(Dataset):
                 raise ValueError(f"{self.files[shard_index]}: manifest sample count mismatch")
         self._cache.move_to_end(shard_index)
         shard = self._cache[shard_index]
-        return tuple(shard[key][offset].float() if key != "actions" else shard[key][offset].long()
-                     for key in FIELDS)
+        values = tuple(shard[key][offset].float() if key != "actions" else shard[key][offset].long()
+                       for key in FIELDS)
+        if self.include_sound_ids:
+            if "sound_ids" not in shard:
+                raise ValueError(f"{self.files[shard_index]}: staged audio training requires sound_ids")
+            return (*values, shard["sound_ids"][offset].long())
+        return values
 
 
 class ShardBatchSampler(Sampler):

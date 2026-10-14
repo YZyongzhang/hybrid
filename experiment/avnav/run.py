@@ -1,5 +1,6 @@
 """AVNav pickle conversion and Hybrid Network supervised training."""
 import argparse
+import json
 import random
 
 import numpy as np
@@ -13,11 +14,22 @@ from Dataset.dataset_avnav import AVNavDataset, ShardBatchSampler, convert_pickl
 
 def run_conversion(config):
     cfg = config.TASK_CONFIG.PT
-    outputs = convert_pickle_to_pt(resolve_path(cfg.FROM_PATH), resolve_path(cfg.TO_PATH),
-                                   cfg.SHARD_SIZE, cfg.SHUFFLE, config.SEED)
+
+    def convert_or_reuse(source, destination):
+        source_path, destination_path = resolve_path(source), resolve_path(destination)
+        manifest_path = destination_path / "manifest.json"
+        if manifest_path.exists():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if manifest.get("source") != str(source_path.resolve()):
+                raise ValueError(f"Existing PT manifest at {destination_path} is from another source")
+            print(f"Reusing converted AVNav split at {destination_path}", flush=True)
+            return [destination_path / item["file"] for item in manifest["shards"]]
+        return convert_pickle_to_pt(source_path, destination_path,
+                                    cfg.SHARD_SIZE, cfg.SHUFFLE, config.SEED)
+
+    outputs = convert_or_reuse(cfg.FROM_PATH, cfg.TO_PATH)
     if cfg.VAL_FROM_PATH:
-        convert_pickle_to_pt(resolve_path(cfg.VAL_FROM_PATH), resolve_path(cfg.VAL_TO_PATH),
-                             cfg.SHARD_SIZE, cfg.SHUFFLE, config.SEED)
+        convert_or_reuse(cfg.VAL_FROM_PATH, cfg.VAL_TO_PATH)
     return outputs
 
 
@@ -60,12 +72,12 @@ def run_training(config):
                               **loader_options)
     val_loader = DataLoader(val_data, batch_size=cfg.BATCH_SIZE, shuffle=False, **loader_options)
 
-    from experiment.avwan.model.hybrid import Network
+    from experiment.avnav.model.hybrid import Network
     from experiment.avnav.train_class.hybrid_train import Train
 
     model = Network().to(device)
     if cfg.MODEL_PATH:
-        model.load_state_dict(torch.load(resolve_path(cfg.MODEL_PATH), map_location="gpu", weights_only=True))
+        model.load_state_dict(torch.load(resolve_path(cfg.MODEL_PATH), map_location=device, weights_only=True))
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.LEARNING_RATE, weight_decay=cfg.WEIGHT_DECAY)
     save_dir = resolve_path(cfg.SAVE_DIR)
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -96,16 +108,46 @@ def run(config):
 
 
 def main(argv=None):
-    # import pdb;pdb.set_trace()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default="experiment/avnav/config/av_nav_multiple.yaml" , help="YAML overrides for experiment/avnav/config/default.yaml")
-    parser.add_argument("--stage", default="train" , choices=("convert", "train", "all"), help="Override workflow OPEN flags")
+    parser.add_argument("--config", default="experiment/avnav/config/experiment.yaml",
+                        help="Foundation workflow YAML")
+    parser.add_argument("--offline-config", default="experiment/avnav/config/offline_rl.yaml",
+                        help="Offline RL and online evaluation YAML")
+    parser.add_argument("--stage", default="train",
+                        choices=("convert", "train", "foundation", "staged_foundation",
+                                 "offline_rl", "evaluate_online", "all", "staged_all"))
+    parser.add_argument("--staged-foundation-config",
+                        default="experiment/avnav/config/foundation_staged.yaml",
+                        help="Two-stage foundation YAML")
     args = parser.parse_args(argv)
     config = get_config(args.config)
-    if args.stage:
-        config.TASK_CONFIG.PT.OPEN = args.stage in ("convert", "all")
-        config.TASK_CONFIG.TRAIN.OPEN = args.stage in ("train", "all")
-    run(config)
+    if args.stage == "convert":
+        config.TASK_CONFIG.PT.OPEN = True
+        config.TASK_CONFIG.TRAIN.OPEN = False
+        return run(config)
+    if args.stage in ("staged_foundation", "staged_all"):
+        from experiment.avnav.train_staged_foundation import run as run_staged_foundation
+        run_staged_foundation(args.staged_foundation_config)
+        if args.stage == "staged_foundation":
+            return 0
+        from experiment.avnav.offline_rl import run as run_offline_rl
+        run_offline_rl(args.offline_config)
+        from experiment.avnav.evaluate_online import run as run_online_evaluation
+        return run_online_evaluation(args.offline_config)
+    if args.stage in ("train", "foundation", "all"):
+        config.TASK_CONFIG.PT.OPEN = False
+        config.TASK_CONFIG.TRAIN.OPEN = True
+        foundation_result = run(config)
+        if args.stage != "all":
+            return foundation_result
+    if args.stage in ("offline_rl", "all"):
+        from experiment.avnav.offline_rl import run as run_offline_rl
+        run_offline_rl(args.offline_config)
+        if args.stage != "all":
+            return 0
+    if args.stage in ("evaluate_online", "all"):
+        from experiment.avnav.evaluate_online import run as run_online_evaluation
+        return run_online_evaluation(args.offline_config)
 
 
 if __name__ == "__main__":
