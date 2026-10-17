@@ -1,0 +1,71 @@
+# Stage 2 for the temporal-audio foundation branch. Run only after its full
+# heard/unheard test confirms SPL remains below the target.
+TASK_CONFIG:
+  TRAIN:
+    OPEN: true
+    MODE: offline_rl
+    OFFLINE_RL:
+      STAGE: all
+      FRESH_FEATURES: false
+      LONGRANGE_POOL: false
+      SEPARATE_HARD_CORRECTION_POOL: false
+      FOUNDATION: result/2026-10-17-temporal-audio-foundation/training/best.pt
+      PARENT: result/2026-10-17-temporal-audio-foundation/offline/seed_20261017_temporal/training/best_policy.pt
+      SOURCES:
+        BASE: /data/Getuanhui/avwan_multiple_greedy_every_1000
+        ADDITIONAL:
+          - /data/Getuanhui/avwan_stop_negative_recovery_20261004/policy
+          - /data/Getuanhui/avwan_stop_negative_recovery_20261004/recovery
+        VALIDATION: result/10-11/total/2026-10-03-unheard-generalization-study/validation_demonstrations
+      CACHES:
+        BASE: result/2026-10-17-temporal-audio-foundation/offline/features/base
+        ADDITIONAL: result/2026-10-17-temporal-audio-foundation/offline/features/additional
+        VALIDATION: result/2026-10-17-temporal-audio-foundation/offline/features/validation
+      RUN:
+        OUTPUT: result/2026-10-17-temporal-audio-foundation/offline/failed_stop_stage2
+        NAME: seed_20261018_failed_stop_factorized
+        SEED: 20261018
+      EXTRACTION:
+        DEVICE: cuda:0
+        CPU_THREADS: 4
+        BATCH_SIZE: 64
+        EPISODE_BATCH_SIZE: 8
+        WORKERS: 4
+        MAX_EPISODES: 0
+        GPU_MEMORY_FRACTION: 0.12
+        MIN_AVAILABLE_GIB: 12
+      TRAINING:
+        DEVICE: cuda:0
+        CPU_THREADS: 4
+        METHOD: sac_cql
+        EPOCHS: 8
+        STEPS_PER_EPOCH: 250
+        BATCH_SIZE: 32
+        # original, actual failed STOP, expert recovery
+        SAMPLING: [24, 6, 2]
+        GAMMA: 0.01
+        DISCOUNT_MODE: smdp
+        BC_WEIGHT: 2.0
+        ACTOR_RL_WEIGHT: 1.0
+        CQL_WEIGHT: 1.0
+        CQL_TEMPERATURE: 1.0
+        ENTROPY_RATIO: 0.1
+        INITIAL_ALPHA: 0.03
+        TAU: 0.005
+        LEARNING_RATE: 0.00001
+        WEIGHT_DECAY: 0.0
+        GRAD_CLIP: 10.0
+        HIDDEN_DIM: 256
+        LSTM_LAYERS: 1
+        TERMINAL_MASK: true
+        FOUNDATION_PRIOR: true
+        PARENT_ANCHOR_WEIGHT: 1.0
+        FAILED_STOP_PENALTY: 1.0
+        FACTORIZED_STOP_HEAD: true
+        STOP_AUX_WEIGHT: 1.0
+        GPU_MEMORY_FRACTION: 0.12
+        MAX_RSS_MIB: 12000
+        MIN_AVAILABLE_GIB: 12
+      VALIDATION:
+        EPISODES: 100
+SEED: 20261018

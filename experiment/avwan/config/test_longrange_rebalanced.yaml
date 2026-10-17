@@ -1,0 +1,13 @@
+TASK_CONFIG:
+  TEST:
+    OPEN: true
+    OUTPUT: result/2026-10-14-avwan-diverse-retraining/longrange_oversampling
+    CHECKPOINT: result/2026-10-14-avwan-diverse-retraining/longrange_oversampling/offline/seed_20261015_longrange_rebalanced/training/best_policy.pt
+    FOUNDATION: result/2026-10-13-staged-grl-reproduction/foundation/action_stage/best.pt
+    DEVICE: cuda:0
+    PREDICTION_INTERVAL: 5
+    SPLITS: [test_multiple, test_multiple_unheard]
+    SHARDS: 2
+    EPISODES_PER_PROCESS: 20
+    EVAL_SEED: 20260930
+    MAX_RSS_MB: 9000

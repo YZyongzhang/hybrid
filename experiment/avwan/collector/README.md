@@ -67,6 +67,7 @@ for t in data['transitions']:
 
 文件保留环境 `last_transition` 全部字段：前后完整观测、地图、action mask、
 waypoint 动作、SMDP 奖励、底层动作和终止标记，另存专家决策、waypoint 到达情况等。
+每个 waypoint 还记录 `primitive_collisions` 和 `collision_count`，供离线诊断碰撞与恢复。
 默认动作空间为 81 个 waypoint，40 为 STOP。完整观测中的目标角度及元数据中的
 声源坐标是目标真值，训练时应明确选择模型输入。只加载可信来源的 pickle。
 

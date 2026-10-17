@@ -32,57 +32,6 @@ class PositionalEcoder(nn.Module):
         return self.position_matrix[:len,:]
 
 
-# 这种方式向下提取，在这个任务上不一定能做的非常好
-class VisualCNNEncoder(nn.Module):
-    def __init__(self,   input_dim = 3, hidden_dim = 8, output_dim = 128):
-        super().__init__()
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        self.output_dim = output_dim
-
-        # 图片shape （3 ， 256 ， 256）
-
-        self.conv2d_1 = nn.Conv2d(in_channels=self.input_dim , out_channels= self.hidden_dim, kernel_size=2 , stride=2)
-        self.conv2d_2 = nn.Conv2d(in_channels=self.hidden_dim , out_channels= 8* self.hidden_dim, kernel_size=4 , stride=4 , padding=1)
-        self.conv2d_3 = nn.Conv2d(in_channels=8 * self.hidden_dim, out_channels=self.output_dim, kernel_size=4 , stride=4 , padding=1)
-
-    def forward(self, visual):
-        # pdb.set_trace()
-        x_1 = self.conv2d_1(visual)
-        # print(x_1.shape)# (batch , 8 , 64 , 64)
-        x_2 = self.conv2d_2(x_1)
-        # print(x_2.shape)# (batch , 64, 16 , 16)
-        result = self.conv2d_3(x_2)
-        # print(result.shape) # (batch , 128 . 4 ,4)
-        # 原图像64 * 64 被编码成了一个patch ， 维度为128
-        return result
-
-# 这种方式向下提取，在这个任务上不一定能做的非常好
-class AudioCNNEncoder(nn.Module):
-    def __init__(self,   input_dim = 2, hidden_dim = 16, output_dim = 128 , sr=16000):
-        super().__init__()
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        self.output_dim = output_dim
-        self.sr = sr
-
-        # 必要的时候考虑通过线性层进行变换，然后让audio得到我们想要输入的形状
-
-        self.conv2d_1 = nn.Conv2d(in_channels=self.input_dim , out_channels= self.hidden_dim, kernel_size=4 , stride=4 , padding=1)
-        self.conv2d_2 = nn.Conv2d(in_channels=self.hidden_dim, out_channels=self.output_dim, kernel_size=4 , stride=4 , padding=1)
-
-    def forward(self, mel_audio):
-        # mel_audio = self._deal_audio(audio)
-        
-        # print(mel_audio.shape)
-        
-        x_1 = self.conv2d_1(mel_audio)
-        # print(x_1.shape)# (batch , 16 , 32 , 16)
-        result = self.conv2d_2(x_1)
-        # print(result.shape)# (batch , 128, 8 , 4)
-        return result
-
-
 class VisualEncoder(nn.Module):
     def __init__(self,   input_dim = 8, kernel_size = 32, output_dim = 128):
         super().__init__()

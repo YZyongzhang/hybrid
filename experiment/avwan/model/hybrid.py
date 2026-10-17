@@ -110,7 +110,8 @@ class Finnal_model(nn.Module):
 
 class Network(nn.Module):
     """User hybrid architecture with egocentric map and valid-waypoint tokens."""
-    def __init__(self, action_count=81, audio_normalization='standard', map_normalization='absolute', spatial_detail=False):
+    def __init__(self, action_count=81, audio_normalization='standard', map_normalization='absolute', spatial_detail=False,
+                 temporal_audio=False):
         super().__init__()
         if map_normalization not in ('absolute', 'relative'):
             raise ValueError(f'Unknown map normalization: {map_normalization}')
@@ -119,7 +120,7 @@ class Network(nn.Module):
         self.visual_encoder = VisualEncoder()
         self.add_position = PositionalEcoder()
         self.visual_transformer_encoder = Encoder(128, 64, 4, 3, .2)
-        self.audio_encoder = AudioCRNN(audio_normalization)
+        self.audio_encoder = AudioCRNN(audio_normalization, temporal_context=temporal_audio)
         self.geometric_encoder = MapEncoder(2, output_grid=4, large=True)
         self.acoustic_encoder = MapEncoder(1, output_grid=2)
         self.mask_encoder = nn.Sequential(nn.Linear(action_count, 128), nn.ReLU())

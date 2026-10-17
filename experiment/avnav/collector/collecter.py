@@ -1,6 +1,6 @@
 from habitat import Config
 from ss_baselines.common.environments import AudioNavRLEnv
-from col.register import CollectRegister
+from .register import CollectRegister
 import torch
 def _load_hybrid_model(ckpt_path):
     from network import HybridNetwork

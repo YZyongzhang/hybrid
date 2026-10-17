@@ -1,0 +1,24 @@
+SEED: 20261014
+PREDICTION_INTERVAL: 5
+TASK_CONFIG:
+  TEST:
+    OPEN: false
+  TRAIN:
+    OPEN: false
+  COLLECT:
+    OPEN: true
+    TYPE: deverse
+    TO_PATH: /data/Getuanhui/avwan_deverse_hard_longrange_20261014
+    RESUME: true
+    RESUME_MODE: episode
+    SUCCESS_ONLY: false
+    VISUALIZE: false
+    SELECTION_PATH: experiment/avwan/config/collectconfig/avwan_hard_longrange_selection.json
+  DATASET:
+    SPLIT: train_multiple
+    CONTENT_SCENES:
+      - 29hnd4uzFmX
+      - 82sE5b5pLXE
+      - JmbYfDe2QKZ
+      - qoiz87JEwZ2
+      - EDJbREhghzL

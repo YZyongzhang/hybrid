@@ -26,12 +26,13 @@ def layer_init(module):
                 nn.init.zeros_(layer.bias)
 
 class AudioCRNN(nn.Module):
-    def __init__(self, normalization='standard') -> None:
+    def __init__(self, normalization='standard', temporal_context=False) -> None:
         super().__init__()
         if normalization not in ('standard', 'binaural_whiten', 'binaural_ratio',
                                  'binaural_robust_ratio'):
             raise ValueError(f'Unknown audio normalization: {normalization}')
         self.normalization = normalization
+        self.temporal_context = bool(temporal_context)
         self._number_input_audio = 2
         cnn_dimensions = np.array(
             (65,26), dtype=np.int32
@@ -87,6 +88,39 @@ class AudioCRNN(nn.Module):
             nn.LayerNorm(64),
             nn.Linear(64, 8),
         )
+
+        # The original encoder collapses the whole spectrogram to one vector
+        # before self-attention. This residual branch keeps the time axis as a
+        # sequence (18 tokens for the current 65x26 input) and only then pools.
+        # Its last projection starts at zero, so loading an older checkpoint
+        # preserves the original function until the branch has learned a useful
+        # correction.
+        if self.temporal_context:
+            self.temporal_cnn = nn.Sequential(
+                nn.Conv2d(2, 32, kernel_size=(5, 5), stride=(2, 1)),
+                nn.ReLU(),
+                nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 1)),
+                nn.ReLU(),
+                nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1)),
+                nn.ReLU(),
+            )
+            self.temporal_input = nn.Sequential(
+                nn.Linear(64, 128), nn.LayerNorm(128), nn.GELU(), nn.Dropout(.1))
+            temporal_layer = nn.TransformerEncoderLayer(
+                d_model=128, nhead=4, dim_feedforward=256, dropout=.1,
+                activation='gelu', batch_first=True, norm_first=True)
+            self.temporal_transformer = nn.TransformerEncoder(temporal_layer, num_layers=2)
+            self.temporal_position = nn.Parameter(torch.zeros(1, 18, 128))
+            self.temporal_score = nn.Linear(128, 1)
+            self.temporal_output = nn.Sequential(
+                nn.LayerNorm(128), nn.Linear(128, 128))
+            nn.init.zeros_(self.temporal_output[-1].weight)
+            nn.init.zeros_(self.temporal_output[-1].bias)
+            # Circular regression complements the existing 8-sector classifier.
+            self.direction_head = nn.Sequential(
+                nn.Linear(128, 64), nn.GELU(), nn.LayerNorm(64), nn.Linear(64, 2))
+            nn.init.normal_(self.direction_head[-1].weight, std=.01)
+            nn.init.zeros_(self.direction_head[-1].bias)
     
         layer_init(self.cnn)
         layer_init(self.fnn)
@@ -107,8 +141,28 @@ class AudioCRNN(nn.Module):
         else:
             dims = (1, 2, 3)
             audio = (audio - audio.mean(dims, keepdim=True)) / (audio.std(dims, keepdim=True, unbiased=False) + 1e-6)
-        x = self.cnn(audio.permute(0, 3, 1, 2).contiguous())
-        return self.attn(x, x, x)
+        channels_first = audio.permute(0, 3, 1, 2).contiguous()
+        x = self.cnn(channels_first)
+        encoded = self.attn(x, x, x)
+        if self.temporal_context:
+            # Preserve temporal order by using unit stride along spectrogram
+            # time. Frequency is pooled only after the convolutional stack.
+            sequence = self.temporal_cnn(channels_first).mean(dim=2).transpose(1, 2)
+            if sequence.shape[1] != self.temporal_position.shape[1]:
+                raise ValueError(f'Unexpected temporal token count: {sequence.shape[1]}')
+            sequence = self.temporal_input(sequence)
+            sequence = self.temporal_transformer(sequence + self.temporal_position)
+            weights = self.temporal_score(sequence).softmax(dim=1)
+            pooled = torch.sum(sequence * weights, dim=1)
+            residual = self.temporal_output(pooled).unsqueeze(1)
+            encoded = encoded + residual
+        return encoded
+
+    def predict_direction(self, audio_token):
+        """Predict a continuous unit-vector direction when that head is enabled."""
+        if not self.temporal_context:
+            raise RuntimeError('Continuous direction head requires temporal_context=True')
+        return self.direction_head(audio_token.float())
 
 
 def binaural_whiten(audio):

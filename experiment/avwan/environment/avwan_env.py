@@ -212,7 +212,7 @@ class AVWANRLEnv(habitat.RLEnv):
         self._needs_reset = True
         self._last_transition = None
         stop = action == self.stop_action
-        rewards, primitive_actions = [], []
+        rewards, primitive_actions, primitive_collisions = [], [], []
         visited_cells = [self.planner.mapper.get_maps_and_agent_pose()[2:4]]
         reaching_waypoint = cant_reach_waypoint = done = False
         info = {}
@@ -227,6 +227,8 @@ class AVWANRLEnv(habitat.RLEnv):
             observation = self._normalize_observation(observation)
             rewards.append(float(reward))
             primitive_actions.append(primitive)
+            collision = observation.get("collision", False)
+            primitive_collisions.append(bool(np.asarray(collision).astype(bool).any()))
             # Update even on termination: next_state needs the FINAL map and pose.
             self.planner.update_map_and_graph(observation)
             x, y = self.planner.mapper.get_maps_and_agent_pose()[2:4]
@@ -256,7 +258,9 @@ class AVWANRLEnv(habitat.RLEnv):
                     cant_reach_waypoint=bool(cant_reach_waypoint), success=bool(success),
                     terminated=terminated, truncated=truncated, num_steps=duration,
                     discounted_reward=discounted_reward, discount=discount,
-                    low_level_actions=primitive_actions, low_level_rewards=rewards)
+                    low_level_actions=primitive_actions, low_level_rewards=rewards,
+                    primitive_collisions=primitive_collisions,
+                    collision_count=int(sum(primitive_collisions)))
         info["TimeLimit.truncated"] = truncated
         if expert_decision is not None:
             info['expert_decision'] = expert_decision
@@ -265,7 +269,8 @@ class AVWANRLEnv(habitat.RLEnv):
             next_observation=deepcopy(observation), terminated=terminated, truncated=truncated,
             done=bool(done), num_steps=duration, discount=discount, gamma=self.gamma,
             undiscounted_reward=sum(rewards), low_level_actions=primitive_actions.copy(),
-            low_level_rewards=rewards.copy(), episode_id=episode_id, scene_id=scene_id,
+            low_level_rewards=rewards.copy(), primitive_collisions=primitive_collisions.copy(),
+            collision_count=int(sum(primitive_collisions)), episode_id=episode_id, scene_id=scene_id,
             start_position=deepcopy(self.start_position),
             sound_source_positions=deepcopy(self.sound_source_positions),
             waypoint_position=waypoint_position.copy(),

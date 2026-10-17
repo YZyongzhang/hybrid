@@ -34,10 +34,16 @@ def run_conversion(config):
 
 
 def build_datasets(cfg, seed):
-    files = get_files(resolve_path(cfg.DATA_PATH), (".pt",))
+    train_paths = list(cfg.DATA_PATHS) if cfg.DATA_PATHS else [cfg.DATA_PATH]
+    files = []
+    for path in train_paths:
+        files.extend(get_files(resolve_path(path), (".pt",)))
+    resolved = [path.resolve() for path in files]
+    if len(set(resolved)) != len(resolved):
+        raise ValueError("Training PT paths contain duplicate shard files")
     if cfg.VAL_DATA_PATH:
         val_files = get_files(resolve_path(cfg.VAL_DATA_PATH), (".pt",))
-        if set(map(lambda p: p.resolve(), files)) & set(map(lambda p: p.resolve(), val_files)):
+        if set(resolved) & set(map(lambda p: p.resolve(), val_files)):
             raise ValueError("Training and validation PT files must be disjoint")
     else:
         if not 0 < cfg.VAL_RATIO < 1:
@@ -114,12 +120,18 @@ def main(argv=None):
     parser.add_argument("--offline-config", default="experiment/avnav/config/offline_rl.yaml",
                         help="Offline RL and online evaluation YAML")
     parser.add_argument("--stage", default="train",
-                        choices=("convert", "train", "foundation", "staged_foundation",
+                        choices=("convert", "train", "foundation", "collect", "staged_foundation",
                                  "offline_rl", "evaluate_online", "all", "staged_all"))
     parser.add_argument("--staged-foundation-config",
                         default="experiment/avnav/config/foundation_staged.yaml",
                         help="Two-stage foundation YAML")
+    parser.add_argument("--collect-config",
+                        default="experiment/avnav/collect.yaml",
+                        help="AVNav collection selector YAML")
     args = parser.parse_args(argv)
+    if args.stage == "collect":
+        from experiment.avnav.collector.collect_data import run as run_collection
+        return run_collection(args.collect_config)
     config = get_config(args.config)
     if args.stage == "convert":
         config.TASK_CONFIG.PT.OPEN = True

@@ -173,12 +173,16 @@ TRAIN:
   OFFLINE_RL:
     STAGE: all
     FRESH_FEATURES: false
+    LONGRANGE_POOL: false
     FOUNDATION: experiment/avwan/runs/every_scene_1000_10_12/best.pt
     PARENT: result/10-11/total/2026-10-03-unheard-generalization-study/exp013-ratio-sac-g0p01-prior-bc5/training/best_policy.pt
     SOURCES:
       # Raw collector episode directories. ADDITIONAL pools both original
       # policy trajectories and expert recovery trajectories, in that order.
       BASE: /data/getuanhui/avwan_multiple_greedy_every_1000
+      # Optional unannotated demonstrations appended to BASE. Keep these out
+      # of ADDITIONAL, which is position-aligned with STOP annotations.
+      BASE_AUGMENT: []
       ADDITIONAL:
       - /data/Getuanhui/avwan_stop_negative_recovery_20261004/policy
       - /data/Getuanhui/avwan_stop_negative_recovery_20261004/recovery

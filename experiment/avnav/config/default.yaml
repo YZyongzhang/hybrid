@@ -11,6 +11,7 @@ TASK_CONFIG:
   TRAIN:
     OPEN: true
     DATA_PATH: data/avnav/train  # A .pt file or directory of shards.
+    DATA_PATHS: []  # Optional list combined with DATA_PATH for augmentation runs.
     VAL_DATA_PATH: ""  # Empty: split whole shards (episodes never cross shards).
     VAL_RATIO: 0.2
     BATCH_SIZE: 32

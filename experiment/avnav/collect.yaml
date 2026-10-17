@@ -1,0 +1,3 @@
+# Collection selector. The named data-generation settings live under config/.
+COLLECTION_NAME: avnav_deverse_hard_longrange_20261014
+COLLECT_CONFIG: config/collect.yaml

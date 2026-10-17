@@ -45,8 +45,15 @@ class OfflinePolicy:
     @classmethod
     def from_checkpoint(cls, state, foundation_path, device):
         signature = state['signature']
-        if signature['architecture'] != 'independent_lstm_discrete_sac_cql_v1':
+        supported_architectures = {
+            'independent_lstm_discrete_sac_cql_v1',
+            'independent_lstm_discrete_sac_cql_stop_factorized_v2',
+        }
+        if signature['architecture'] not in supported_architectures:
             raise ValueError('Unsupported offline RL checkpoint')
+        factorized = signature['architecture'] == 'independent_lstm_discrete_sac_cql_stop_factorized_v2'
+        if bool(state['config']['training'].get('factorized_stop_head', False)) != factorized:
+            raise ValueError('Checkpoint architecture and factorized STOP configuration disagree')
         if sha256(Path(foundation_path)) != signature['features']['checkpoint_sha256']:
             raise ValueError('Foundation checkpoint does not match the training feature cache')
         foundation = load_foundation(foundation_path, device)

@@ -13,7 +13,7 @@ class GammaBCObjectives(unittest.TestCase):
     def setUp(self):
         torch.set_num_threads(1);torch.manual_seed(42)
         cfg=load_config(ROOT/'config/offline_rl.yaml')['training']
-        cfg.update(hidden_dim=8,gamma=.99,terminal_mask=True,bc_weight=5.)
+        cfg.update(hidden_dim=8,gamma=.99,terminal_mask=True,bc_weight=5.,discount_mode='fixed_gamma')
         self.model=RecurrentSACCQL(4,3,cfg)
         self.batch=collate_episodes([small_episode(3),small_episode(1)])
 
@@ -47,6 +47,22 @@ class GammaBCObjectives(unittest.TestCase):
         self.batch['discount'].zero_()
         c=self.model.losses(self.batch)
         torch.testing.assert_close(c['td_target'],reward)
+
+    def test_smdp_uses_each_transition_discount_and_terminal_zero(self):
+        with torch.no_grad():
+            for head in [self.model.target_q1,self.model.target_q2]:
+                for p in head.parameters():p.zero_()
+                head.head[-1].bias.fill_(2.)
+        self.model.config['discount_mode']='smdp'
+        self.batch['discount'].fill_(.2)
+        low=self.model.losses(self.batch)
+        self.batch['discount'].fill_(.8)
+        high=self.model.losses(self.batch)
+        self.assertGreater(float(high['td_target']),float(low['td_target']))
+        torch.testing.assert_close(high['discount_used'],torch.tensor(.8))
+        self.batch['discount'].zero_()
+        terminal=self.model.losses(self.batch)
+        torch.testing.assert_close(terminal['td_target'],self.batch['reward'][self.batch['valid']].mean())
 
     def test_diagnostics_do_not_change_training_update(self):
         other=copy.deepcopy(self.model)

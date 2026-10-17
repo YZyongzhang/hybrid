@@ -1,0 +1,13 @@
+TASK_CONFIG:
+  TEST:
+    OPEN: true
+    OUTPUT: result/2026-10-14-avwan-diverse-retraining
+    CHECKPOINT: result/2026-10-14-avwan-diverse-retraining/offline/seed_20261014_deverse_hard_longrange/training/best_policy.pt
+    FOUNDATION: result/2026-10-13-staged-grl-reproduction/foundation/action_stage/best.pt
+    DEVICE: cuda:0
+    PREDICTION_INTERVAL: 5
+    SPLITS: [test_multiple, test_multiple_unheard]
+    SHARDS: 1
+    EPISODES_PER_PROCESS: 20
+    EVAL_SEED: 20260930
+    MAX_RSS_MB: 9000

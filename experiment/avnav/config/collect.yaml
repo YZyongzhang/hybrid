@@ -1,0 +1,18 @@
+# Targeted AVNav collection settings referenced from experiment/avnav/collect.yaml.
+ENV_CONFIG: experiment/avwan/config/audiogoal.yaml
+SELECTION_PATH: experiment/avwan/config/collectconfig/avwan_hard_longrange_selection.json
+OUTPUT: /data/Getuanhui/avnav_deverse_hard_longrange_20261014
+CHECKPOINT: result/2026-10-13-avnav-staged-grl-gamma/foundation/best.pth
+DEVICE: cuda:0
+SEED: 20261014
+MAX_STEPS: 200
+MODEL_PROBABILITY: 0.60
+ORACLE_PROBABILITY: 0.20
+RANDOM_PROBABILITY: 0.20
+RECOVERY_STEPS: 4
+CONTENT_SCENES:
+  - 29hnd4uzFmX
+  - 82sE5b5pLXE
+  - JmbYfDe2QKZ
+  - qoiz87JEwZ2
+  - EDJbREhghzL

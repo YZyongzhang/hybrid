@@ -1,0 +1,74 @@
+# Conditional stage 2: fine-tune the SMDP-corrected model with a sampled
+# negative STOP pool. Run only if stage 1 misses the full-test SPL threshold.
+TASK_CONFIG:
+  TEST:
+    OPEN: false
+  TRAIN:
+    OPEN: true
+    MODE: offline_rl
+    OFFLINE_RL:
+      STAGE: all
+      FRESH_FEATURES: false
+      LONGRANGE_POOL: false
+      SEPARATE_HARD_CORRECTION_POOL: true
+      FOUNDATION: result/2026-10-13-staged-grl-reproduction/foundation/action_stage/best.pt
+      PARENT: result/2026-10-16-avwan-smdp-discount/seed_20261017_smdp_discount/training/latest.pt
+      SOURCES:
+        BASE: /data/Getuanhui/avwan_multiple_greedy_every_1000
+        BASE_AUGMENT:
+          - /data/Getuanhui/avwan_deverse_hard_longrange_20261014
+        ADDITIONAL:
+          - /data/Getuanhui/avwan_stop_negative_recovery_20261004/policy
+          - /data/Getuanhui/avwan_stop_negative_recovery_20261004/recovery
+        HARD_CORRECTION: result/2026-10-15-avwan-spl-improvement/corrections/training_source
+        VALIDATION: result/10-11/total/2026-10-03-unheard-generalization-study/validation_demonstrations
+      CACHES:
+        BASE: result/2026-10-14-avwan-diverse-retraining/offline/features/base
+        ADDITIONAL: result/2026-10-14-avwan-diverse-retraining/offline/features/correction
+        VALIDATION: result/2026-10-14-avwan-diverse-retraining/offline/features/validation
+        HARD_CORRECTION: result/2026-10-15-avwan-spl-improvement/offline/features/productive_corrections
+      RUN:
+        OUTPUT: result/2026-10-16-avwan-failed-stop-smdp
+        NAME: seed_20261018_failed_stop_smdp
+        SEED: 20261018
+      EXTRACTION:
+        DEVICE: cuda:0
+        CPU_THREADS: 4
+        BATCH_SIZE: 64
+        EPISODE_BATCH_SIZE: 8
+        WORKERS: 4
+        MAX_EPISODES: 0
+        GPU_MEMORY_FRACTION: 0.12
+        MIN_AVAILABLE_GIB: 12
+      TRAINING:
+        DEVICE: cuda:0
+        CPU_THREADS: 4
+        EPOCHS: 8
+        STEPS_PER_EPOCH: 250
+        BATCH_SIZE: 32
+        # base, productive corrections, actual failed STOP, recovery
+        SAMPLING: [24, 2, 6, 0]
+        GAMMA: 0.01
+        DISCOUNT_MODE: smdp
+        BC_WEIGHT: 2.0
+        ACTOR_RL_WEIGHT: 1.0
+        CQL_WEIGHT: 1.0
+        CQL_TEMPERATURE: 1.0
+        ENTROPY_RATIO: 0.1
+        INITIAL_ALPHA: 0.03
+        TAU: 0.005
+        LEARNING_RATE: 0.00001
+        WEIGHT_DECAY: 0.0
+        GRAD_CLIP: 10.0
+        HIDDEN_DIM: 256
+        LSTM_LAYERS: 1
+        TERMINAL_MASK: true
+        FOUNDATION_PRIOR: true
+        PARENT_ANCHOR_WEIGHT: 1.0
+        FAILED_STOP_PENALTY: 1.0
+        GPU_MEMORY_FRACTION: 0.12
+        MAX_RSS_MIB: 12000
+        MIN_AVAILABLE_GIB: 12
+      VALIDATION:
+        EPISODES: 100
+SEED: 20261018

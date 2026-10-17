@@ -1,0 +1,4 @@
+# Collection selector. The detailed run and simulator settings live in the
+# referenced, named collection config under config/collectconfig/.
+COLLECTION_NAME: avwan_deverse_hard_longrange_20261014
+COLLECT_CONFIG: config/collectconfig/deverse_hard_longrange.yaml

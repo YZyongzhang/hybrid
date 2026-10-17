@@ -4,60 +4,8 @@ import torch.nn as nn
 from experiment.avwan.model.vit import ViTEncoder , VisualEncoder , PositionalEcoder
 from experiment.avwan.model.audio import AudioCRNN
 from experiment.avwan.model.Encoder import Encoder
-class Attention(nn.Module):
-    def __init__(self , input_dim , visual_dim , audio_dim ,hidden_dim, output_dim):
-        super().__init__()
-        self.input_dim = input_dim
-        self.visual_dim = visual_dim
-        self.audio_dim = audio_dim
-        self.hidden_dim = hidden_dim
-        self.output_dim = output_dim
-
-
-        self.fc1 = nn.Linear(input_dim , hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, output_dim)
-
-
-        self.attention_weight = nn.Parameter(torch.randn(self.output_dim) * 0.01)
-        
-        
-    def forward(self, encode):
-        x1 = torch.relu(self.fc1(encode))
-        x2 = torch.relu(self.fc2(x1))
-        self.attention_weight.unsqueeze(1)
-        # import pdb;pdb.set_trace()
-        # y = torch.matmul(x2.unsqueeze(-1) , self.attention_weight)
-        y = x2 * self.attention_weight
-        return x2
     
-class Vote(nn.Module):
-    def __init__(self,input_dim):
-        super().__init__()
-        self.input_dim = input_dim
-        # self.hidden_dim = hidden_dim
-        # self.output_dim = output_dim
-        
-        self.voter = nn.Parameter(torch.randn(self.input_dim , 32) * 0.01)
-
-    def forward(self,embeding):
-        output = torch.matmul(embeding , self.voter)
-        return output
-    
-class Decision(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim=1):
-        super(Decision, self).__init__()
-        self.input_dim = input_dim
-        self.fc1 = nn.Linear(input_dim , hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, output_dim)
-
-    def forward(self, input_matrix):
-        x = input_matrix.squeeze(1)
-        # import pdb;pdb.set_trace()
-        x = torch.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
-    
-class Finnal_model(nn.Module):
+class Final_model(nn.Module):
     def __init__(self, input_dim , hidden_dim , output_dim):
         super().__init__()
         self.input_dim = 17*128
@@ -73,22 +21,10 @@ class Finnal_model(nn.Module):
             nn.LayerNorm(hidden_dim),
         )
         
-        # self.polar_head = nn.Sequential(
-        #     nn.Linear(self.hidden_dim, 128),
-        #     nn.ReLU(),
-        #     nn.LayerNorm(128),
-        #     nn.Linear(128, 2)
-        # )
         self.polar_head_probe = nn.Sequential(
             nn.Linear(self.hidden_dim , 2 )
         )
 
-        # self.angle_head = nn.Sequential(
-        #     nn.Linear(self.hidden_dim, 128),
-        #     nn.ReLU(),
-        #     nn.LayerNorm(128),
-        #     nn.Linear(128, 8)
-        # )
         self.angle_head_probe = nn.Sequential(
             nn.Linear(self.hidden_dim , 8)
         )
@@ -117,7 +53,7 @@ class Network(nn.Module):
         self.audio_encoder = AudioCRNN()
 
         self.vaencoder =  Encoder(d_model=128 , ffn_hidden=64,n_head=4,n_layers=3,drop_prob=0.2)
-        self.final = Finnal_model(input_dim = 512 , hidden_dim= 256 , output_dim=4)
+        self.final = Final_model(input_dim = 512 , hidden_dim= 256 , output_dim=4)
         self.device = torch.device('cuda' if torch.cuda.is_available() else "cpu")
 
     def _prepare_inputs(self, audio, rgb, depth):

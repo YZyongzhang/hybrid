@@ -7,7 +7,7 @@ from habitat import Config
 from ss_baselines.common.environments import AudioNavRLEnv
 from habitat.tasks.nav.shortest_path_follower import ShortestPathFollower
 from soundspaces import SoundSpacesSim , ContinuousSoundSpacesSim
-from utils import draw_map
+from utils.visualizations import draw_map
 import pickle , copy , os ,random
 import numpy as np
 import habitat_sim

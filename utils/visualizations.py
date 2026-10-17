@@ -117,29 +117,40 @@ def draw_map(env, path_points , agent_pos , sound_points):
         )
         return top_down_map
 def plot_top_down_map_waypoint(info, dataset='mp3d'):
-    """Render an AVWAN get_info()/step() snapshot as an RGB image.
+    """Render an AV-WaN snapshot as an RGB top-down map.
 
-    Coordinates in top_down_map are (row, column) in its unrotated map.
-    Keep Habitat's agent sprite, mark waypoints with small red circles, and
-    mark sound sources with small filled red squares.
-    Repeated locations show only the latest action index (including STOP).
-    This only needs saved info, so it can also render after the env is closed.
+    The start is a green circle, action-selected waypoints are numbered red
+    circles, sound sources are blue squares, and optional collision locations
+    are magenta crosses. A cyan line shows the recorded agent path, while a
+    gold line connects the start and waypoints in selection order. Coordinates
+    in ``top_down_map`` are (row, column) in its unrotated map. Repeated
+    waypoints show only the latest action index (including STOP). This also
+    works from a saved info snapshot after the environment is closed.
     """
     map_info = info["top_down_map"]
-    map_values = map_info["map"].copy()
-    # Remove source/target markers already baked into Habitat's map as well.
-    map_values[np.isin(map_values, [maps.MAP_SOURCE_POINT_INDICATOR,
-                                   maps.MAP_TARGET_POINT_INDICATOR])] = maps.MAP_VALID_POINT
-    top_down_map = maps.colorize_topdown_map(
-        map_values, map_info.get("fog_of_war_mask")
-    ).copy()
-    radius = max(1, top_down_map.shape[0] // (16 if dataset == 'replica' else 50))
-    top_down_map = maps.draw_agent(
-        image=top_down_map,
-        agent_center_coord=map_info["agent_map_coord"],
-        agent_rotation=map_info["agent_angle"],
-        agent_radius_px=radius,
-    )
+    if "rgb_map" in map_info:
+        # Also accept a previously rendered Habitat map. This makes it
+        # possible to add the same annotated markers to cached map snapshots.
+        top_down_map = np.asarray(map_info["rgb_map"]).copy()
+        if top_down_map.ndim != 3 or top_down_map.shape[-1] not in (3, 4):
+            raise ValueError("top_down_map.rgb_map must be an RGB or RGBA image")
+        top_down_map = top_down_map[..., :3]
+    else:
+        map_values = map_info["map"].copy()
+        # Remove source/target markers already baked into Habitat's map as well.
+        map_values[np.isin(map_values, [maps.MAP_SOURCE_POINT_INDICATOR,
+                                       maps.MAP_TARGET_POINT_INDICATOR])] = maps.MAP_VALID_POINT
+        top_down_map = maps.colorize_topdown_map(
+            map_values, map_info.get("fog_of_war_mask")
+        ).copy()
+    if map_info.get("agent_map_coord") is not None:
+        radius = max(1, top_down_map.shape[0] // (16 if dataset == 'replica' else 50))
+        top_down_map = maps.draw_agent(
+            image=top_down_map,
+            agent_center_coord=map_info["agent_map_coord"],
+            agent_rotation=map_info.get("agent_angle", 0.0),
+            agent_radius_px=radius,
+        )
     # Rotate the map and the annotations together, but keep text upright.
     original_width = top_down_map.shape[1]
     rotate = top_down_map.shape[0] > original_width
@@ -170,14 +181,49 @@ def plot_top_down_map_waypoint(info, dataset='mp3d'):
     for index, coord in enumerate(map_info["waypoint_map_coords"], start=1):
         point = image_point(coord)
         waypoint_labels[point] = str(index)
+
+    start_coord = map_info.get('start_map_coord')
+    start_point = image_point(start_coord) if start_coord is not None else None
+    path_coords = [image_point(coord)
+                   for coord in map_info.get('agent_path_map_coords', [])]
+    if len(path_coords) > 1:
+        cv2.polylines(top_down_map,
+                      [np.asarray(path_coords, dtype=np.int32).reshape(-1, 1, 2)],
+                      False, (30, 150, 165), 2, cv2.LINE_AA)
+    waypoint_points = list(waypoint_labels)
+    sequence = ([start_point] if start_point is not None else []) + waypoint_points
+    if len(sequence) > 1:
+        cv2.polylines(top_down_map,
+                      [np.asarray(sequence, dtype=np.int32).reshape(-1, 1, 2)],
+                      False, (255, 190, 0), 2, cv2.LINE_AA)
+
     red = (255, 0, 0)
     for point in waypoint_labels:
+        cv2.circle(top_down_map, point, 5, (255, 255, 255), -1, cv2.LINE_AA)
         cv2.circle(top_down_map, point, 3, red, -1, cv2.LINE_AA)
-    # Draw sources after waypoints so the square remains visible when a
-    # waypoint is exactly at the source; retain its latest index alongside it.
-    for coord in map_info.get('sound_source_map_coords', []):
+    # Draw sound markers after waypoints so they remain visible on overlap.
+    blue = (0, 0, 255)
+    sound_points = []
+    for index, coord in enumerate(map_info.get('sound_source_map_coords', []), start=1):
         x, y = image_point(coord)
-        cv2.rectangle(top_down_map, (x - 3, y - 3), (x + 3, y + 3), red, -1)
+        sound_points.append((x, y))
+        cv2.rectangle(top_down_map, (x - 6, y - 6), (x + 6, y + 6),
+                      (255, 255, 255), -1)
+        cv2.rectangle(top_down_map, (x - 4, y - 4), (x + 4, y + 4), blue, -1)
+        label((x, y), f'T{index}', blue)
+
+    # Optional collision locations from a replay/diagnostic snapshot.
+    for coord in map_info.get('collision_map_coords', []):
+        x, y = image_point(coord)
+        cv2.drawMarker(top_down_map, (x, y), (210, 35, 160),
+                       markerType=cv2.MARKER_TILTED_CROSS, markerSize=13,
+                       thickness=2, line_type=cv2.LINE_AA)
+
+    if start_point is not None:
+        green = (0, 255, 0)
+        cv2.circle(top_down_map, start_point, 8, (255, 255, 255), -1, cv2.LINE_AA)
+        cv2.circle(top_down_map, start_point, 6, green, -1, cv2.LINE_AA)
+        label(start_point, 'START', green)
     for point, index in waypoint_labels.items():
         label(point, index, red)
     return top_down_map

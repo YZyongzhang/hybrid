@@ -32,6 +32,8 @@ class FeatureEpisodes(Dataset):
             if (not episode['action_mask'][:-1].gather(-1, episode['action'][:, None]).all()
                     or (episode['discount'] < 0).any() or (episode['discount'] > 1).any()):
                 raise ValueError(f'Invalid action/discount: {entry["path"]}')
+            from .reward_shaping import resolve_source
+            episode['_source_path'] = str(resolve_source(manifest, entry).resolve())
             self.episodes.append(episode)
         if not self.episodes:
             raise ValueError(f'Empty {split} feature dataset')
@@ -51,8 +53,10 @@ def collate_episodes(episodes):
     batch = dict(features=torch.zeros(batch_size, length + 1, feature_dim),
                  action_mask=torch.ones(batch_size, length + 1, actions, dtype=torch.bool),
                  action=torch.zeros(batch_size, length, dtype=torch.long),
+                 stop_target=torch.zeros(batch_size, length, dtype=torch.bool),
                  reward=torch.zeros(batch_size, length), discount=torch.zeros(batch_size, length),
                  bc_mask=torch.zeros(batch_size, length, dtype=torch.bool),
+                 anchor_mask=torch.zeros(batch_size, length, dtype=torch.bool),
                  valid=torch.zeros(batch_size, length, dtype=torch.bool))
     for i, episode in enumerate(episodes):
         n = len(episode['action'])
@@ -60,9 +64,17 @@ def collate_episodes(episodes):
             batch[key][i, :n + 1] = episode[key]
         for key in ('action', 'reward', 'discount'):
             batch[key][i, :n] = episode[key]
+        stop_target = episode.get('stop_target', episode['action'] == actions // 2)
+        if stop_target.shape != (n,) or stop_target.dtype != torch.bool:
+            raise ValueError('STOP targets must be boolean values per real transition')
+        batch['stop_target'][i, :n] = stop_target
         bc_mask = episode.get('bc_mask', torch.ones(n, dtype=torch.bool))
         if bc_mask.shape != (n,) or bc_mask.dtype != torch.bool:
             raise ValueError('BC mask must be a boolean value per real transition')
         batch['bc_mask'][i, :n] = bc_mask
+        anchor_mask = episode.get('anchor_mask', torch.zeros(n, dtype=torch.bool))
+        if anchor_mask.shape != (n,) or anchor_mask.dtype != torch.bool:
+            raise ValueError('Anchor mask must be a boolean value per real transition')
+        batch['anchor_mask'][i, :n] = anchor_mask
         batch['valid'][i, :n] = True
     return batch

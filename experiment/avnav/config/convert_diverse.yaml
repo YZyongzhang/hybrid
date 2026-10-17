@@ -1,0 +1,8 @@
+TASK_CONFIG:
+  PT:
+    FROM_PATH: /data/Getuanhui/avnav_deverse_hard_longrange_20261014/episodes
+    TO_PATH: /data/Getuanhui/avnav-hybrid-mutiple/pt/collection_20261014
+    SHARD_SIZE: 256
+    SHUFFLE: true
+  TRAIN:
+    OPEN: false

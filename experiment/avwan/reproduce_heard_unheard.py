@@ -40,12 +40,20 @@ def train(args):
     runner.train(args.name, 'recovery_expert_bc', args.failed_stop_penalty,
                  base_cache=args.base_cache, steps_per_epoch=args.steps_per_epoch,
                  epochs=args.epochs, sampling=args.sampling,
+                 longrange_sources=args.longrange_source,
                  foundation_checkpoint=args.foundation,
                  parent_checkpoint=args.parent,
                  additional_cache=args.additional_cache,
                  validation_cache=args.validation_cache,
                   training_overrides=json.loads(args.training_overrides),
                  random_initialization=args.random_initialization,
+                 hard_correction_cache=args.hard_correction_cache,
+                 hard_correction_source=args.hard_correction_source,
+                 curriculum_schedule=json.loads(args.curriculum_schedule)
+                 if args.curriculum_schedule else None,
+                 training_method=args.training_method,
+                 separate_hard_correction_pool=args.separate_hard_correction_pool,
+                 reward_shaping=json.loads(args.reward_shaping) if args.reward_shaping else None,
                   device=args.device, cpu_threads=args.cpu_threads,
                   gpu_memory_fraction=args.gpu_memory_fraction,
                   max_rss_mib=args.max_rss_mb,
@@ -83,8 +91,18 @@ def audit(args):
             training['initial_alpha'] <= 0 or not isinstance(training['terminal_mask'], bool) or
             not isinstance(training['foundation_prior'], bool)):
         raise ValueError('Invalid SAC-CQL training configuration')
-    if state['signature']['architecture'] != 'independent_lstm_discrete_sac_cql_v1':
+    architecture = state['signature']['architecture']
+    supported_architectures = {
+        'independent_lstm_discrete_sac_cql_v1',
+        'independent_lstm_discrete_sac_cql_stop_factorized_v2',
+    }
+    if architecture not in supported_architectures:
         raise ValueError('Checkpoint is not the recurrent SAC-CQL actor')
+    factorized = architecture == 'independent_lstm_discrete_sac_cql_stop_factorized_v2'
+    if (bool(training.get('factorized_stop_head', False)) != factorized or
+            float(training.get('stop_aux_weight', 0.)) < 0 or
+            (float(training.get('stop_aux_weight', 0.)) > 0 and not factorized)):
+        raise ValueError('Checkpoint STOP-head architecture or auxiliary loss configuration is inconsistent')
     parent_value = cfg['stop_pipeline'].get('parent')
     parent_checkpoint = Path(parent_value) if parent_value else None
     if parent_checkpoint is not None:
@@ -116,6 +134,62 @@ def audit(args):
     collected = [row for line in collection_index.read_text().splitlines() if line.strip()
                  for row in [json.loads(line)]
                  if (row['scene'], str(row['episode_id'])) in train_keys]
+    hard_source_value = cfg['stop_pipeline'].get('hard_correction_source')
+    hard_cache_value = cfg['stop_pipeline'].get('hard_correction_cache')
+    if bool(hard_source_value) != bool(hard_cache_value):
+        raise ValueError('Hard correction source and feature cache must be recorded together')
+    if hard_source_value:
+        hard_source = Path(hard_source_value)
+        hard_manifest_path = hard_source / 'manifest.json'
+        hard_index_path = hard_source / 'episodes.jsonl'
+        if not hard_manifest_path.is_file() or not hard_index_path.is_file():
+            raise FileNotFoundError('Hard correction manifest or episode index is missing')
+        hard_collection = json.loads(hard_manifest_path.read_text())
+        if (not hard_collection.get('training_only') or
+                not hard_collection.get('actual_action_reward_next_state_preserved')):
+            raise ValueError('Hard correction data is not audited train-only coherent data')
+        hard_rows = [json.loads(line) for line in hard_index_path.read_text().splitlines() if line.strip()]
+        hard_keys = {(row['scene'], str(row['episode_id'])) for row in hard_rows}
+        if len(hard_keys) != len(hard_rows):
+            raise ValueError('Duplicate hard correction episodes')
+        hard_selection = json.loads((hard_source / 'selection.json').read_text())
+        selected_keys = {(row['scene'], str(row['episode_id']))
+                         for row in hard_selection['episodes']}
+        if selected_keys != hard_keys or hard_selection.get('selection_split') != 'train_multiple':
+            raise ValueError('Hard correction selection does not match its train-only episode index')
+        selection_source = Path(hard_selection['source']).resolve()
+        if not selection_source.is_file() or digest(selection_source) != hard_selection['source_sha256']:
+            raise ValueError('Hard correction train-selection source changed after collection')
+        base_sources = base_manifest['identity']['source']
+        base_roots = base_sources if isinstance(base_sources, list) else [base_sources]
+        if selection_source.parent.resolve() not in {Path(root).resolve() for root in base_roots}:
+            raise ValueError('Hard correction candidates are not part of the audited base training sources')
+        train_keys.update(hard_keys)
+        source_rows = {(row['scene'], str(row['episode_id'])): row
+                       for line in selection_source.read_text().splitlines() if line.strip()
+                       for row in [json.loads(line)]}
+        if not hard_keys <= set(source_rows):
+            raise ValueError('Hard correction episodes are absent from the train collection index')
+        collected.extend(source_rows[key] for key in hard_keys)
+        hard_cache = Path(hard_cache_value)
+        hard_feature_manifest = json.loads((hard_cache / 'manifest.json').read_text())
+        if hard_feature_manifest['identity']['checkpoint_sha256'] != digest(args.foundation):
+            raise ValueError('Hard correction feature cache has a different foundation')
+        cached_source = hard_feature_manifest['identity']['source']
+        cached_roots = cached_source if isinstance(cached_source, list) else [cached_source]
+        if [Path(root).resolve() for root in cached_roots] != [hard_source.resolve()]:
+            raise ValueError('Hard correction cache was extracted from a different raw source')
+        feature_keys = set()
+        for entry in hard_feature_manifest['splits']['train']:
+            source_path = Path(entry['source'])
+            if source_path.parent.parent.name != 'episodes':
+                raise ValueError(f'Unexpected hard correction cache source entry: {entry["source"]}')
+            feature_keys.add((source_path.parent.name, source_path.name.removesuffix('.pkl.gz')))
+        if len(feature_keys) != len(hard_feature_manifest['splits']['train']) or feature_keys != hard_keys:
+            raise ValueError('Hard correction feature cache does not match its raw episode selection')
+        hard_manifest_hash = cfg['stop_pipeline'].get('hard_correction_manifest_sha256')
+        if hard_manifest_hash and digest(hard_cache / 'manifest.json') != hard_manifest_hash:
+            raise ValueError('Hard correction feature manifest changed after training')
     if base_cache.resolve() != BASE_CACHE.resolve():
         base_keys = {episode_key(row['source']) for row in base}
         source = base_manifest['identity']['source']
@@ -178,12 +252,23 @@ def audit(args):
                               'sounds': len(sounds), 'sounds_seen_in_training': len(shared)}
     audited_sources = ('experiment/avwan/evaluate.py', 'experiment/avwan/offline/policy.py',
                        'experiment/avwan/offline/sac_cql.py',
+                       'experiment/avwan/offline/dataset.py',
+                       'experiment/avwan/train_stop_rl.py',
+                       'experiment/avwan/reproduce_heard_unheard.py',
+                       'experiment/avwan/collect_hard_corrections.py',
+                       'experiment/avwan/collect_parent_spl_diagnostics.py',
+                       'experiment/avwan/analyze_parent_spl_diagnostics.py',
+                       'experiment/avwan/analyze_spl_improvement.py',
+                       'experiment/avwan/analyze_hard_corrections.py',
+                       'experiment/avwan/analyze_rollout_failures.py',
                        'experiment/avwan/environment/avwan_env.py',
                        'experiment/avwan/environment/Planner.py')
     report = {'checkpoint': str(checkpoint), 'checkpoint_sha256': digest(checkpoint),
               'foundation_sha256': digest(args.foundation),
               'training_episode_keys': len(train_keys), 'base_cache': str(base_cache),
               'additional_cache': str(additional_cache), 'validation_cache': str(validation_cache),
+              'hard_correction_source': hard_source_value,
+              'hard_correction_episodes': len(hard_keys) if hard_source_value else 0,
               'parent_checkpoint_sha256': digest(parent_checkpoint) if parent_checkpoint is not None else None,
               'test_populations': populations,
               'actor': 'masked argmax over trained SAC actor logits',
@@ -251,7 +336,8 @@ def evaluate_split(args, split, checkpoint):
               'checkpoint': str(checkpoint), 'checkpoint_sha256': digest(checkpoint),
               'foundation': str(args.foundation), 'foundation_sha256': digest(args.foundation),
               'revisit_penalty': 0.0, 'reset_memory': False,
-              'prediction_interval': 5, 'policy': 'frozen_foundation_lstm_sac_masked_argmax'}
+              'prediction_interval': args.prediction_interval,
+              'policy': 'frozen_foundation_lstm_sac_masked_argmax'}
     if result['errors']:
         raise RuntimeError(f'{split}: {result["errors"]} evaluation errors')
     path = args.output / 'full_test' / f'{split}.json'
@@ -335,11 +421,25 @@ def main():
                    help='Optional frozen large-data feature cache for the original trajectory pool')
     p.add_argument('--steps-per-epoch', type=int, default=186)
     p.add_argument('--epochs', type=int, default=40)
-    p.add_argument('--sampling', type=int, nargs=3, metavar=('ORIGINAL','NEGATIVE','RECOVERY'),
-                   help='Three trajectory counts per batch; their sum must match training batch_size')
+    p.add_argument('--sampling', type=int, nargs='+', metavar='COUNT',
+                   help=('Three pool counts (original, negative STOP, recovery), or four with a '
+                         'long-range pool; must sum to training batch_size'))
+    p.add_argument('--longrange-source', type=Path, nargs='+', default=[],
+                   help='Raw source roots already included in BASE_AUGMENT; sample this pool separately')
+    p.add_argument('--hard-correction-source', type=Path,
+                   help='Train-only DAgger episode root for targeted long-distance corrections')
+    p.add_argument('--hard-correction-cache', type=Path,
+                   help='Frozen features for train-only long-distance correction episodes')
     p.add_argument('--failed-stop-penalty', type=float, default=1.0)
     p.add_argument('--training-overrides', default='{}',
                    help='JSON object overriding SAC-CQL training parameters from the parent config')
+    p.add_argument('--curriculum-schedule',
+                   help='JSON array of {name, epochs, sampling} stages for six training pools')
+    p.add_argument('--training-method', choices=('sac_cql','actor_only_bc'), default='sac_cql')
+    p.add_argument('--reward-shaping', default='',
+                   help='JSON reward shaping applied to train-only cached episodes')
+    p.add_argument('--separate-hard-correction-pool', action='store_true',
+                   help='Sample audited corrections separately from legacy long-range episodes')
     p.add_argument('--cpu-threads', type=int, default=4)
     p.add_argument('--gpu-memory-fraction', type=float, default=.12)
     p.add_argument('--min-available-gib', type=float, default=12.)
@@ -382,6 +482,14 @@ def main():
         args.additional_cache = args.additional_cache.resolve()
     if args.validation_cache:
         args.validation_cache = args.validation_cache.resolve()
+    if args.hard_correction_source:
+        args.hard_correction_source = args.hard_correction_source.resolve()
+    if args.hard_correction_cache:
+        args.hard_correction_cache = args.hard_correction_cache.resolve()
+    if args.curriculum_schedule:
+        stages=json.loads(args.curriculum_schedule)
+        if not isinstance(stages,list) or not stages:
+            raise ValueError('--curriculum-schedule must be a nonempty JSON array')
     if min(args.shards, args.episodes_per_process, args.validation_episodes,
            args.steps_per_epoch, args.epochs) < 1:
         p.error('shards, process episodes, validation episodes, training steps, and epochs must be positive')

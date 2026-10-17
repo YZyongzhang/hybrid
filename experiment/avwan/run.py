@@ -3,6 +3,8 @@ import argparse
 import os
 from pathlib import Path
 
+import yaml
+
 from experiment.avwan.config.default import get_config
 from experiment.avwan.collector import COLLECTER
 
@@ -89,7 +91,22 @@ def main(argv=None):
     previous_directory = Path.cwd()
     try:
         os.chdir(Path(__file__).resolve().parents[2])
-        return run(get_config(args.config))
+        config_paths = [args.config] if args.config else []
+        if args.config:
+            outer_path = Path(args.config).expanduser()
+            if not outer_path.is_absolute():
+                outer_path = Path.cwd() / outer_path
+            with outer_path.open(encoding='utf-8') as handle:
+                outer = yaml.safe_load(handle) or {}
+            referenced = str(outer.get('COLLECT_CONFIG', '')).strip()
+            if referenced:
+                referenced_path = Path(referenced).expanduser()
+                if not referenced_path.is_absolute():
+                    local_reference = outer_path.parent / referenced_path
+                    referenced_path = (local_reference if local_reference.exists()
+                                       else Path.cwd() / referenced_path)
+                config_paths.append(str(referenced_path.resolve()))
+        return run(get_config(config_paths))
     finally:
         os.chdir(previous_directory)
 

@@ -39,21 +39,45 @@ def conservative_gap(q, actions, mask, temperature):
 
 
 class RecurrentHead(nn.Module):
-    def __init__(self, feature_dim, hidden_dim, action_count, layers, foundation_prior=False):
+    def __init__(self, feature_dim, hidden_dim, action_count, layers, foundation_prior=False,
+                 factorized_stop_head=False):
         super().__init__()
         self.lstm = nn.LSTM(feature_dim, hidden_dim, layers, batch_first=True)
-        self.head = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
-                                  nn.Linear(hidden_dim, action_count))
+        self.action_count = action_count
+        self.stop_action = action_count // 2
+        self.factorized_stop_head = bool(factorized_stop_head)
+        if self.factorized_stop_head:
+            if action_count % 2 != 1:
+                raise ValueError('A factorized STOP head requires an odd action count with a center STOP action')
+            self.head = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU())
+            self.motion_head = nn.Linear(hidden_dim, action_count - 1)
+            self.stop_head = nn.Linear(hidden_dim, 1)
+        else:
+            self.head = nn.Sequential(nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+                                      nn.Linear(hidden_dim, action_count))
         self.prior = None
         if foundation_prior:
             self.prior = nn.Sequential(nn.Linear(feature_dim, 128), nn.ReLU(), nn.LayerNorm(128), nn.Linear(128, action_count))
             self.prior.requires_grad_(False)
-            nn.init.zeros_(self.head[-1].weight)
-            nn.init.zeros_(self.head[-1].bias)
+            if self.factorized_stop_head:
+                nn.init.zeros_(self.motion_head.weight)
+                nn.init.zeros_(self.motion_head.bias)
+                nn.init.zeros_(self.stop_head.weight)
+                nn.init.zeros_(self.stop_head.bias)
+            else:
+                nn.init.zeros_(self.head[-1].weight)
+                nn.init.zeros_(self.head[-1].bias)
 
     def forward(self, features, hidden=None):
         latent, hidden = self.lstm(features, hidden)
-        logits = self.head(latent)
+        if self.factorized_stop_head:
+            shared = self.head(latent)
+            motion_logits = self.motion_head(shared)
+            stop_logits = self.stop_head(shared)
+            logits = torch.cat((motion_logits[..., :self.stop_action], stop_logits,
+                                motion_logits[..., self.stop_action:]), dim=-1)
+        else:
+            logits = self.head(latent)
         if self.prior is not None:
             logits = self.prior(features) + logits
         return logits, hidden
@@ -64,7 +88,10 @@ class RecurrentSACCQL(nn.Module):
         super().__init__()
         self.config = config
         args = (feature_dim, config['hidden_dim'], action_count, config['lstm_layers'])
-        self.actor = RecurrentHead(*args, foundation_prior=config.get('foundation_prior', False))
+        self.factorized_stop_head = bool(config.get('factorized_stop_head', False))
+        self.stop_action = action_count // 2
+        self.actor = RecurrentHead(*args, foundation_prior=config.get('foundation_prior', False),
+                                   factorized_stop_head=self.factorized_stop_head)
         self.q1, self.q2 = RecurrentHead(*args), RecurrentHead(*args)
         self.target_q1, self.target_q2 = copy.deepcopy(self.q1), copy.deepcopy(self.q2)
         self.target_q1.requires_grad_(False)
@@ -87,7 +114,7 @@ class RecurrentSACCQL(nn.Module):
         action = probs.argmax(-1) if deterministic else torch.distributions.Categorical(probs).sample()
         return action, hidden
 
-    def losses(self, batch):
+    def losses(self, batch, reference_actor=None):
         states, masks, valid = batch['features'], batch['action_mask'], batch['valid']
         alpha = self.log_alpha.exp().detach()
         # All networks start from zero at the real episode start. Processing
@@ -99,13 +126,20 @@ class RecurrentSACCQL(nn.Module):
             target2, _ = self.target_q2(states)
             values = (probs.detach() * (torch.minimum(target1, target2) - alpha * log_probs.detach())).sum(-1)
             bootstrap = values[:, 1:]
-            if self.config.get('terminal_mask', False):
-                # Cached zero discounts identify true terminals; time limits
-                # retain positive discounts. gamma remains a decision discount.
-                bootstrap = bootstrap * (batch['discount'] > 0)
-            # Historical checkpoints predate training.gamma and used the
-            # collector's SMDP discount (including terminal masking).
-            discount = self.config.get('gamma', batch['discount'])
+            discount_mode = self.config.get('discount_mode', 'smdp')
+            if discount_mode == 'smdp':
+                # Each waypoint transition spans `num_steps` primitive actions.
+                # The collector already stores gamma**num_steps, with zero for
+                # true terminals and a positive value for time-limit truncation.
+                discount = batch['discount']
+            elif discount_mode == 'fixed_gamma':
+                # Kept only for reproducing older runs that used one decision
+                # discount regardless of macro-action duration.
+                discount = self.config['gamma']
+                if self.config.get('terminal_mask', False):
+                    bootstrap = bootstrap * (batch['discount'] > 0)
+            else:
+                raise ValueError(f'Unknown discount_mode: {discount_mode!r}')
             td_target = batch['reward'] + discount * bootstrap
         q1, _ = self.q1(states[:, :-1])
         q2, _ = self.q2(states[:, :-1])
@@ -123,6 +157,30 @@ class RecurrentSACCQL(nn.Module):
         bc_nll = behavior_cloning_loss(lp, action, valid, batch.get('bc_mask'))
         actor_loss = (self.config.get('actor_rl_weight', 1.) * actor_loss
                       + self.config.get('bc_weight', 0.) * bc_nll)
+        stop_aux_loss = actor_loss.new_zeros(())
+        stop_aux_weight = float(self.config.get('stop_aux_weight', 0.))
+        if stop_aux_weight > 0:
+            stop_target = batch.get('stop_target', action == self.stop_action).bool()
+            stop_probability = p[..., self.stop_action].clamp(1e-7, 1. - 1e-7)
+            positive = valid & stop_target
+            negative = valid & ~stop_target
+            positive_nll = -stop_probability.log()
+            negative_nll = -torch.log1p(-stop_probability)
+            positive_mean = positive_nll[positive].mean() if positive.any() else actor_loss.new_zeros(())
+            negative_mean = negative_nll[negative].mean() if negative.any() else actor_loss.new_zeros(())
+            stop_aux_loss = 0.5 * (positive_mean + negative_mean)
+            actor_loss = actor_loss + stop_aux_weight * stop_aux_loss
+        parent_kl = actor_loss.new_zeros(())
+        anchor_weight = self.config.get('parent_anchor_weight', 0.)
+        anchor_mask = batch.get('anchor_mask')
+        if reference_actor is not None and anchor_weight > 0 and anchor_mask is not None:
+            with torch.no_grad():
+                reference_logits, _ = reference_actor(states[:, :-1])
+                reference_probs, reference_log_probs = masked_policy(reference_logits, masks[:, :-1])
+            per_state_kl = (reference_probs * (reference_log_probs - lp)).sum(-1)
+            allowed_anchor = valid & anchor_mask.bool()
+            parent_kl = per_state_kl[allowed_anchor].sum() / allowed_anchor.sum().clamp_min(1)
+            actor_loss = actor_loss + anchor_weight * parent_kl
         entropy = -(p * lp).sum(-1)
         target_entropy = self.config['entropy_ratio'] * masks[:, :-1].sum(-1).float().log()
         # If H < target, gradient descent INCREASES alpha.
@@ -132,12 +190,17 @@ class RecurrentSACCQL(nn.Module):
                        target_entropy=mean_valid(target_entropy, valid),
                        action_accuracy=mean_valid((p.argmax(-1) == action).float(), valid),
                        policy_nll=policy_nll, bc_nll=bc_nll,
+                       stop_aux_loss=stop_aux_loss,
+                       parent_kl=parent_kl,
+                       discount_used=mean_valid(
+                           discount if isinstance(discount, torch.Tensor)
+                           else torch.full_like(batch['reward'], float(discount)), valid),
                        q_data=mean_valid(0.5 * (taken1 + taken2), valid),
                        td_target=mean_valid(td_target, valid))
         return metrics
 
-    def update(self, batch, optimizers):
-        losses = self.losses(batch)
+    def update(self, batch, optimizers, reference_actor=None):
+        losses = self.losses(batch, reference_actor=reference_actor)
         if any(not torch.isfinite(value).all() for value in losses.values()):
             raise FloatingPointError('Nonfinite SAC-CQL loss')
         for key, loss in [('critic', 'critic_loss'), ('actor', 'actor_loss'), ('alpha', 'alpha_loss')]:

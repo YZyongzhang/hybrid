@@ -34,15 +34,42 @@ def prepare_config(cfg):
     for section, key in (("run", "output"), ("caches", "base"), ("caches", "additional"),
                          ("caches", "validation")):
         cfg[section][key] = resolve(cfg[section][key])
+    if cfg["caches"].get("hard_correction"):
+        cfg["caches"]["hard_correction"] = resolve(cfg["caches"]["hard_correction"])
+    augment = cfg["sources"].get("base_augment", [])
+    augment = augment if isinstance(augment, list) else ([augment] if augment else [])
+    if augment:
+        cfg["sources"]["base"] = [cfg["sources"]["base"], *augment]
+    longrange = augment if cfg.get("longrange_pool", False) else []
+    cfg["sources"]["longrange"] = [resolve(path) for path in longrange]
     for key in ("base", "additional", "validation"):
         value = cfg["sources"][key]
         cfg["sources"][key] = ([resolve(path) for path in value]
                                if isinstance(value, list) else resolve(value))
+    if cfg["sources"].get("hard_correction"):
+        cfg["sources"]["hard_correction"] = resolve(cfg["sources"]["hard_correction"])
     cfg["foundation"] = resolve(cfg["foundation"])
     cfg["parent"] = resolve(cfg["parent"]) if cfg.get("parent") else None
     cfg["run"]["output"].mkdir(parents=True, exist_ok=True)
-    if len(cfg["training"]["sampling"]) != 3 or sum(cfg["training"]["sampling"]) != 32:
-        raise ValueError("training.sampling must contain three counts totaling 32")
+    schedule = cfg["training"].get("curriculum_schedule")
+    separate_corrections = bool(cfg.get("separate_hard_correction_pool",
+                                       cfg["training"].get("separate_hard_correction_pool", False)))
+    expected_pools = 6 if schedule else None
+    if schedule:
+        if len(cfg["training"]["sampling"]) != expected_pools:
+            raise ValueError("Curriculum training.sampling must contain six pool counts")
+        if sum(int(stage["epochs"]) for stage in schedule) != int(cfg["training"]["epochs"]):
+            raise ValueError("Curriculum stage epochs must sum to training.epochs")
+        for stage in schedule:
+            counts = stage["sampling"]
+            if len(counts) != expected_pools or sum(counts) != 32 or any(int(n) < 0 for n in counts):
+                raise ValueError(f"Invalid curriculum sampling in stage {stage.get('name')}")
+    else:
+        allowed = ((5,) if cfg.get("longrange_pool", False) else (4,)) if separate_corrections else (3, 4)
+        if len(cfg["training"]["sampling"]) not in allowed or sum(cfg["training"]["sampling"]) != 32:
+            raise ValueError(f"training.sampling must contain {allowed} counts totaling 32")
+    if separate_corrections and not cfg["sources"].get("hard_correction"):
+        raise ValueError("A separate hard correction pool requires sources.hard_correction")
     for label, key in (("foundation", "foundation"), ("parent", "parent")):
         if cfg[key] is None and key == "parent":
             continue
@@ -53,6 +80,8 @@ def prepare_config(cfg):
         for source in (sources if isinstance(sources, list) else [sources]):
             if not source.is_dir():
                 raise FileNotFoundError(f"{key} source not found: {source}")
+    if cfg["sources"].get("hard_correction") and not cfg["sources"]["hard_correction"].is_dir():
+        raise FileNotFoundError(f"hard_correction source not found: {cfg['sources']['hard_correction']}")
     return cfg
 
 
@@ -71,7 +100,10 @@ def extract_caches(cfg, fresh=False):
                              if line.startswith('MemAvailable:'))) / (1024 * 1024)
     if available_gib < settings.get("min_available_gib", 12):
         raise MemoryError(f"Stopping feature extraction with only {available_gib:.1f} GiB RAM available")
-    for key in ("base", "additional", "validation"):
+    keys = ["base", "additional", "validation"]
+    if cfg["sources"].get("hard_correction"):
+        keys.append("hard_correction")
+    for key in keys:
         cache = cfg["caches"][key]
         if fresh:
             try:
@@ -111,7 +143,8 @@ def train(cfg):
     overrides = {key: value for key, value in training.items()
                  if key not in {"device", "cpu_threads", "epochs", "steps_per_epoch",
                                 "sampling", "failed_stop_penalty", "gpu_memory_fraction",
-                                "max_rss_mib", "min_available_gib"}}
+                                "max_rss_mib", "min_available_gib", "curriculum_schedule",
+                                "method", "separate_hard_correction_pool", "reward_shaping"}}
     command = [
         "experiment.avwan.reproduce_heard_unheard", "train",
         "--output", run["output"], "--name", run["name"], "--seed", run["seed"],
@@ -127,7 +160,20 @@ def train(cfg):
         "--max-rss-mb", training.get("max_rss_mib", 12000),
         "--min-available-gib", training.get("min_available_gib", 12),
         "--training-overrides", json.dumps(overrides, separators=(",", ":")),
+        "--training-method", training.get("method", "sac_cql"),
     ]
+    if training.get("reward_shaping"):
+        command.extend(["--reward-shaping", json.dumps(training["reward_shaping"], separators=(",", ":"))])
+    if cfg.get("separate_hard_correction_pool", training.get("separate_hard_correction_pool", False)):
+        command.append("--separate-hard-correction-pool")
+    if cfg["sources"].get("longrange"):
+        command.extend(["--longrange-source", *cfg["sources"]["longrange"]])
+    if cfg["sources"].get("hard_correction"):
+        command.extend(["--hard-correction-source", cfg["sources"]["hard_correction"]])
+        command.extend(["--hard-correction-cache", cfg["caches"]["hard_correction"]])
+    if training.get("curriculum_schedule"):
+        command.extend(["--curriculum-schedule",
+                        json.dumps(training["curriculum_schedule"], separators=(",", ":"))])
     if cfg["parent"] is None:
         command.append("--random-initialization")
     else:
@@ -136,11 +182,16 @@ def train(cfg):
 
 
 def audit(cfg):
-    run_module(
+    command = [
         "experiment.avwan.reproduce_heard_unheard", "audit",
         "--output", cfg["run"]["output"], "--name", cfg["run"]["name"],
+        "--checkpoint", cfg["run"]["output"] / cfg["run"]["name"] / "training" / "best_policy.pt",
         "--foundation", cfg["foundation"],
-    )
+    ]
+    if cfg["sources"].get("hard_correction"):
+        command.extend(["--hard-correction-source", cfg["sources"]["hard_correction"]])
+        command.extend(["--hard-correction-cache", cfg["caches"]["hard_correction"]])
+    run_module(*command)
 
 
 def validate(cfg):
@@ -148,6 +199,7 @@ def validate(cfg):
         run_module(
             "experiment.avwan.reproduce_heard_unheard", "validate",
             "--output", cfg["run"]["output"], "--name", cfg["run"]["name"],
+            "--checkpoint", cfg["run"]["output"] / cfg["run"]["name"] / "training" / "best_policy.pt",
             "--foundation", cfg["foundation"], "--validation-split", split,
             "--validation-episodes", cfg["validation"]["episodes"],
             "--device", cfg["training"]["device"],
