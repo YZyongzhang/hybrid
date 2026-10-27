@@ -5,4 +5,16 @@ outputs/
 experiment/avnav/result/
 .cache/
 result/
+result_avnav/
+
+# Generated experiment artifacts and large model/data files
+**/runs/
+**/data_cache/
+**/checkpoints/
+*.pt
+*.pth
+*.npy
+*.npz
+*.log
+*.tmp
 

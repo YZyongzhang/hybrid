@@ -2,6 +2,7 @@
 from bisect import bisect_right
 from collections import OrderedDict
 import json
+import hashlib
 from pathlib import Path
 import pickle
 import random
@@ -25,7 +26,7 @@ def get_files(path, suffixes):
     return files
 
 
-def _observation(obs):
+def _observation(obs, angle_override=None):
     rgb = torch.as_tensor(np.asarray(obs["rgb"])).float() / 255.0
     depth = torch.as_tensor(np.asarray(obs["depth"])).float()
     if depth.ndim == 2:
@@ -43,13 +44,18 @@ def _observation(obs):
         raise ValueError(f"Expected matching HWC depth, got {tuple(depth.shape)}")
     if audio.ndim != 3 or audio.shape[-1] != 2:
         raise ValueError(f"Expected (frequency, time, 2) spectrogram, got {tuple(audio.shape)}")
-    angle = np.asarray(obs["angle"]).reshape(-1)
+    angle_value = obs.get("angle") if angle_override is None else angle_override
+    if angle_value is None:
+        raise KeyError("obs.angle is required; provide a train-only angle label map if absent")
+    angle = np.asarray(angle_value).reshape(-1)
     if len(angle) < 2:
         raise ValueError("obs.angle must contain [distance, azimuth_radians]")
     return rgb, depth, audio, torch.tensor(np.degrees(angle[1]), dtype=torch.float32)
 
 
-def convert_pickle_to_pt(source, destination, shard_size=256, shuffle=True, seed=42):
+def convert_pickle_to_pt(source, destination, shard_size=256, shuffle=True, seed=42,
+                         angle_labels_path=None, sound_labels_path=None,
+                         file_list=None):
     """Preserve episode boundaries; shard_size is a target, not a hard limit.
 
     The last observation is terminal and has no action. At each episode start,
@@ -57,15 +63,27 @@ def convert_pickle_to_pt(source, destination, shard_size=256, shuffle=True, seed
     """
     if shard_size < 1:
         raise ValueError("SHARD_SIZE must be positive")
-    files = get_files(source, (".pkl", ".pickle"))
+    files = ([Path(path).expanduser().resolve() for path in file_list]
+             if file_list is not None else get_files(source, (".pkl", ".pickle")))
+    if not files or any(not path.is_file() or path.suffix not in (".pkl", ".pickle")
+                        for path in files):
+        raise FileNotFoundError("Explicit AVNav episode file list is empty or invalid")
     if shuffle:
         random.Random(seed).shuffle(files)
+    angle_labels = None
+    parent_sound_labels = None
+    angle_labels_path = Path(angle_labels_path).expanduser().resolve() if angle_labels_path else None
+    sound_labels_path = Path(sound_labels_path).expanduser().resolve() if sound_labels_path else None
+    if angle_labels_path:
+        angle_labels = json.loads(angle_labels_path.read_text(encoding="utf-8"))
+    if sound_labels_path:
+        parent_sound_labels = json.loads(sound_labels_path.read_text(encoding="utf-8"))
     destination = Path(destination)
     if destination.exists() and any(destination.glob("*.pt")):
         raise FileExistsError(f"PT output already contains shards: {destination}; use a new directory")
     destination.mkdir(parents=True, exist_ok=True)
     buffer = {key: [] for key in (*FIELDS, "sound_ids")}
-    sound_labels, shards = {}, []
+    sound_label_to_id, shards = {}, []
     total = 0
 
     def flush():
@@ -85,24 +103,37 @@ def convert_pickle_to_pt(source, destination, shard_size=256, shuffle=True, seed
             data = pickle.load(handle)
         obs = data["obs"]
         steps = max(0, len(obs) - 1)
+        task_id = str(data.get("task_id", file.stem))
+        episode_angles = angle_labels.get(task_id) if angle_labels is not None else None
+        if episode_angles is not None and len(episode_angles) != len(obs):
+            raise ValueError(f"{file}: angle labels must cover every observation")
+        if any("angle" not in row for row in obs) and episode_angles is None:
+            raise ValueError(f"{file}: missing obs.angle and train-only angle labels")
         actions = np.asarray(data["action_id"]).reshape(-1)
         if len(actions) != steps:
             raise ValueError(f"{file}: {steps} transitions but {len(actions)} actions")
         if buffer["actions"] and len(buffer["actions"]) + steps > shard_size:
             flush()
-        sounds = np.asarray(data.get("sound_id", "unknown"), dtype=object).reshape(-1)
+        sound_value = data.get("sound_id")
+        parent_key = f"{data.get('parent_scene', '')}/{data.get('parent_episode_id', '')}"
+        if parent_sound_labels is not None and parent_key in parent_sound_labels:
+            sound_value = [parent_sound_labels[parent_key]]
+        if sound_value is None:
+            sound_value = "unknown"
+        sounds = np.asarray(sound_value, dtype=object).reshape(-1)
         if len(sounds) not in (1, steps, steps + 1):
             raise ValueError(f"{file}: sound_id must be an episode label or per-step labels")
         previous_rgb = previous_depth = None
         for index in range(steps):
-            rgb, depth, audio, angle = _observation(obs[index])
+            override = episode_angles[index] if episode_angles is not None else None
+            rgb, depth, audio, angle = _observation(obs[index], angle_override=override)
             if previous_rgb is None:
                 previous_rgb, previous_depth = torch.zeros_like(rgb), torch.zeros_like(depth)
             action = int(actions[index])
             if action != actions[index] or not 0 <= action < 4:
                 raise ValueError(f"{file}: action must be an integer in [0, 3], got {actions[index]}")
             label = str(sounds[0 if len(sounds) == 1 else index])
-            sound_id = sound_labels.setdefault(label, len(sound_labels))
+            sound_id = sound_label_to_id.setdefault(label, len(sound_label_to_id))
             sample = (audio, torch.cat((previous_rgb, rgb), dim=-1),
                       torch.cat((previous_depth, depth), dim=-1), angle,
                       torch.tensor(action, dtype=torch.long), torch.tensor(sound_id, dtype=torch.long))
@@ -114,8 +145,14 @@ def convert_pickle_to_pt(source, destination, shard_size=256, shuffle=True, seed
     flush()
     if not total:
         raise ValueError(f"No transitions found in {source}")
-    manifest = {"samples": total, "shards": shards, "sound_label_to_id": sound_labels,
+    manifest = {"samples": total, "shards": shards, "sound_label_to_id": sound_label_to_id,
                 "source": str(Path(source).resolve()), "episodes": len(files)}
+    if angle_labels_path:
+        manifest["angle_labels_source"] = str(angle_labels_path)
+        manifest["angle_labels_sha256"] = hashlib.sha256(angle_labels_path.read_bytes()).hexdigest()
+    if sound_labels_path:
+        manifest["sound_labels_source"] = str(sound_labels_path)
+        manifest["sound_labels_sha256"] = hashlib.sha256(sound_labels_path.read_bytes()).hexdigest()
     (destination / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"Converted {total} transitions into {len(shards)} shards at {destination}")
     return [destination / shard["file"] for shard in shards]

@@ -1,6 +1,6 @@
 import sys
 
-# from ss_baselines.common.env_utils import construct_envs
+import soundspaces  # Registers AVNav's SoundSpaces simulator and audio sensors.
 from ss_baselines.common.environments import AudioNavRLEnv
 # from configs.default import get_config
 # from habitat.datasets import make_dataset

@@ -1,0 +1,37 @@
+TRAIN:
+  STAGE: all
+  RESUME: ''
+  SEED: 20261006
+  DATA:
+    SOURCE: /data/Getuanhui/avwan_multiple_greedy_every_1000
+    VAL_SOURCE: /data/Getuanhui/avwan_multiple_greedy_val_heard
+    CACHE: data_cache/foundation_no_depth
+    INPUTS: [rgb, spectrogram, gm, am]
+    SHARD_SIZE: 512
+    CONVERT_WORKERS: 4
+    VAL_FRACTION: 0.1
+    SPLIT_BY: scene
+    MAX_EPISODES: 0
+  INTEGRITY:
+    TRAIN_INDEX: /data/Getuanhui/avwan_multiple_greedy_every_1000/episodes.jsonl
+    VAL_INDEX: /data/Getuanhui/avwan_multiple_greedy_val_heard/episodes.jsonl
+    TEST_MANIFEST_ROOT: data/datasets/audionav/mp3d/v1
+    TEST_SPLITS: [test_multiple, test_multiple_unheard]
+  OUTPUT: runs/foundation_no_depth
+  DEVICE: auto
+  EPOCHS: 100
+  BATCH_SIZE: 64
+  WORKERS: 4
+  PREFETCH_FACTOR: 2
+  PIN_MEMORY: true
+  CPU_THREADS: 4
+  LEARNING_RATE: 0.0001
+  WEIGHT_DECAY: 0.0
+  ACTION_LOSS_WEIGHT: 1.0
+  ANGLE_LOSS_WEIGHT: 1.0
+  GRAD_CLIP: 10.0
+  AMP: true
+  LOG_EVERY: 50
+  MAX_BATCHES: 0
+  TENSORBOARD: true
+  SAVE_TOP_K: 3

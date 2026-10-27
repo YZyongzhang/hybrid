@@ -10,16 +10,21 @@ import hashlib
 import json
 from pathlib import Path
 import random
+import sys
 import time
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-from .data_pipeline.dataset import make_loader
-from .model.hybrid import Network
-from .model.maps import unpack_geometry
-from .training.trainer import save_checkpoint
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from experiment.avwan.data_pipeline.dataset import make_loader
+from experiment.avwan.model.hybrid import Network
+from experiment.avwan.model.maps import unpack_geometry
+from experiment.avwan.training.trainer import save_checkpoint
 
 
 ROOT = Path(__file__).resolve().parents[2]

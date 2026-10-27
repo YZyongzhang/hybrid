@@ -1,0 +1,40 @@
+{
+  "name": "AVNav RGB-D + Audio Offline SAC-LSTM candidate",
+  "created_from": "/home/getuanhui/project/finnal_exp",
+  "paired_checkpoints": {
+    "foundation": {
+      "packaged_file": "checkpoints/foundation_epoch_125.pth",
+      "source_file": "PR/heard/ckpt/20260603_114140/model_epoch_125.pth",
+      "sha256": "ce79f80dce4fae2c7778991f057b0ba3153e5a021e34b02566365c3c3a4b68e0"
+    },
+    "offline_policy": {
+      "packaged_file": "checkpoints/saccql_epoch_80.pth",
+      "source_file": "media/TRAIN/20260603_154559/sac_2level_model_80.pth",
+      "sha256": "dccb05981d942fb8b874b8153f695e1109e6f5d83f655efd9d115455d11222c5"
+    }
+  },
+  "model_code": {
+    "foundation_source": "network/hybrid_with_separate_audio/hybrid_with_separate_audio.py",
+    "offline_policy_source": "network/offline/v1_5/OfflineNet.py"
+  },
+  "inference": {
+    "modalities": ["audio spectrogram", "RGB", "depth"],
+    "visual_context": "previous and current frames concatenated along width",
+    "policy_history_length": 5,
+    "deterministic_actions": true,
+    "action_count": 4,
+    "action_postprocessing": false
+  },
+  "validation": {
+    "log": "logs/eval_OfflineRL_v1_5_20260604_143241.log",
+    "split": "val_multiple_unheard",
+    "episodes": 500,
+    "average_reward": 7.6199,
+    "average_spl": 0.267,
+    "success_rate": 0.366,
+    "average_steps": 132.21,
+    "max_steps": 200,
+    "final_test_or_real_hardware_validation": false,
+    "formal_checkpoint_selection_rule_documented": false
+  }
+}

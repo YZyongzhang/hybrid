@@ -22,7 +22,7 @@ class COLLECTER:
     def __init__(self,config:Config,env:AudioNavRLEnv , **kwargs):
         self.env = env
         self.collect_config = config.TASK_CONFIG.COLLECT
-        if self.collect_config.TYPE in ['greedy' , 'collided' , 'random' , 'angle' , 'offlineRL' , 'offlineRLtwoframe' , 'offlineLevel', 'offlineversion1' , 'offlineversion2' , 'offlineversion3' , 'offlineversion_2.0', 'offlineRL_v1_5', 'avwan_greedy']:
+        if self.collect_config.TYPE in ['greedy' , 'collided' , 'random' , 'angle' , 'offlineRL' , 'offlineRLtwoframe' , 'offlineLevel', 'offlineversion1' , 'offlineversion2' , 'offlineversion3' , 'offlineversion_2.0', 'offlineRL_v1_5']:
             cls = CollectRegister.get(self.collect_config.TYPE)
             
             if self.collect_config.TYPE in ['offlineRL' , 'offlineRLtwoframe' ,'collided']:

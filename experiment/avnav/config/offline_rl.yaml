@@ -25,7 +25,7 @@ OFFLINE_RL:
   HIDDEN_DIM: 256
   DEVICE: cuda:0
 EVALUATION:
-  CONFIG: experiment/avwan/config/audiogoal.yaml
+  CONFIG: experiment/avnav/config/audiogoal.yaml
   SPLITS: [test_multiple, test_multiple_unheard]
   EPISODES_PER_SPLIT: 1000
   SEED: 20261014

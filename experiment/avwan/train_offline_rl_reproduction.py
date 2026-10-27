@@ -9,7 +9,11 @@ from pathlib import Path
 import torch
 import yaml
 
-from .offline.features import extract
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from experiment.avwan.offline.features import extract
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -134,7 +138,8 @@ def extract_caches(cfg, fresh=False):
 
 
 def run_module(module, *args):
-    command = [sys.executable, "-m", module, *(str(arg) for arg in args)]
+    script = ROOT.joinpath(*module.split(".")).with_suffix(".py")
+    command = [sys.executable, str(script), *(str(arg) for arg in args)]
     subprocess.run(command, cwd=ROOT, check=True)
 
 

@@ -1,5 +1,7 @@
 # AVWAN Foundation Model 训练
 
+要复现 `2026-10-17-unheard-generalization-v2` 的完整训练与测试流程（含数据审计、interval validation 和全量 test），见 [v2 训练与测试复现说明](REPRODUCTION_V2.md)。
+
 Foundation 完成后，可通过 `run_avwan.py` 配置并启动 refined offline RL。当前
 `audiogoal.yaml` 默认 `TRAIN.MODE: offline_rl`；foundation、parent、数据源、缓存和
 训练参数都在 `TRAIN.OFFLINE_RL` 下。

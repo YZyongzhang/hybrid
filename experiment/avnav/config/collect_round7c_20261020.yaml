@@ -1,0 +1,16 @@
+COLLECTION_NAME: avnav_diverse_round7c_20261020
+ENV_CONFIG: experiment/avnav/config/audiogoal.yaml
+SELECTION_PATH: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-19-avnav-generalization/iteration7/data/selected_train_episodes.json
+OUTPUT: /data/Getuanhui/avnav_diverse_round7c_20261020
+EPISODE_START: 667
+EPISODE_END: 1000
+CHECKPOINT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-19-avnav-generalization/iteration7/collection_policy/base4_successonly_iql_action.pth
+DEVICE: cuda:0
+SEED: 20261083
+MAX_STEPS: 200
+MODEL_PROBABILITY: 0.2
+ORACLE_PROBABILITY: 0.7
+RANDOM_PROBABILITY: 0.1
+RECOVERY_STEPS: 4
+CONTENT_SCENES:
+- '*'

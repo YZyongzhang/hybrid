@@ -1,0 +1,39 @@
+SEED: 20261018
+DATA:
+  TRAIN_EPISODES:
+  - /data/Getuanhui/avnav-hybrid-mutiple/pickle/hybird(heard_train_multiple)
+  - /data/Getuanhui/avnav_deverse_hard_longrange_20261014/episodes
+  - /data/Getuanhui/avnav_diverse_all_scenes_20261018/episodes
+  VALIDATION_EPISODES: /data/Getuanhui/avnav-hybrid-mutiple/pickle/hybird(val_multiple)
+  VALIDATION_UNHEARD_EPISODES: /data/Getuanhui/avnav-hybrid-mutiple/pickle/hybird(val_multiple_unheard)
+FOUNDATION:
+  CHECKPOINT: result_avnav/2026-10-18-avnav-diversity/foundation/best.pth
+  DEVICE: cuda:0
+  EMBED_BATCH_SIZE: 32
+  FEATURE_SHARD_SIZE: 8192
+OFFLINE_RL:
+  ALGORITHM: cql
+  OUTPUT: result_avnav/2026-10-18-avnav-diversity/offline/final_cql_gamma_0.95_bc_5.0
+  FEATURE_CACHE_ROOT: result_avnav/2026-10-18-avnav-diversity/offline/shared_features
+  EPOCHS: 30
+  UPDATES_PER_EPOCH: 300
+  BATCH_SIZE: 256
+  LEARNING_RATE: 0.0001
+  GAMMA: 0.95
+  ALPHA: 0.1
+  CQL_WEIGHT: 1.0
+  BC_WEIGHT: 5.0
+  TARGET_TAU: 0.005
+  HIDDEN_DIM: 256
+  DEVICE: cuda:0
+EVALUATION:
+  CONFIG: experiment/avnav/config/audiogoal.yaml
+  SPLITS:
+  - test_multiple
+  - test_multiple_unheard
+  EPISODES_PER_SPLIT: 1000
+  SEED: 20261014
+  MAX_STEPS: 200
+  DEVICE: cuda:0
+ENVIRONMENT:
+  MAX_EPISODE_STEPS: 200

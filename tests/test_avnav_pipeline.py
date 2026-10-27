@@ -61,29 +61,73 @@ class PipelineTest(unittest.TestCase):
             build_datasets(cfg, 42)
 
     def test_launcher_conversion_training_and_checkpoint_loading(self):
-        from experiment.avwan.model.hybrid import Network
-        destination, checkpoints = self.root / "pt", self.root / "checkpoints"
+        from experiment.avnav.model.hybrid import Network
+        destination, val_destination, checkpoints = (
+            self.root / "pt", self.root / "val_pt", self.root / "checkpoints")
+        train_raw, val_raw = self.root / "train_raw", self.root / "val_raw"
+        train_raw.mkdir(); val_raw.mkdir()
+        for episode, source, target in ((0, self.raw, train_raw), (1, self.raw, train_raw),
+                                        (2, self.raw, val_raw)):
+            with (source / f"{episode}.pkl").open("rb") as handle:
+                payload = pickle.load(handle)
+            payload["reward"] = [0.0, 0.0]
+            payload["done"] = [False, True]
+            payload["collision"] = [False, False]
+            with (target / f"{episode}.pkl").open("wb") as handle:
+                pickle.dump(payload, handle)
+        convert_pickle_to_pt(train_raw, destination, shard_size=2, shuffle=False)
+        convert_pickle_to_pt(val_raw, val_destination, shard_size=2, shuffle=False)
+        offline_output = self.root / "offline_output"
+        offline_config = self.root / "offline.yaml"
+        offline_config.write_text(yaml.safe_dump({
+            "SEED": 11,
+            "DATA": {"TRAIN_EPISODES": [str(train_raw)], "VALIDATION_EPISODES": str(val_raw)},
+            "FOUNDATION": {"CHECKPOINT": str(checkpoints / "model_epoch_1.pth"), "DEVICE": "cpu",
+                           "EMBED_BATCH_SIZE": 2, "FEATURE_SHARD_SIZE": 128},
+            "OFFLINE_RL": {"ALGORITHM": "cql", "OUTPUT": str(offline_output),
+                           "FEATURE_CACHE_ROOT": str(self.root / "features"),
+                           "EPOCHS": 1, "UPDATES_PER_EPOCH": 1, "BATCH_SIZE": 2,
+                           "LEARNING_RATE": 0.0001, "GAMMA": 0.8, "ALPHA": 0.1,
+                           "CQL_WEIGHT": 1.0, "BC_WEIGHT": 1.0, "TARGET_TAU": 0.005,
+                           "HIDDEN_DIM": 16, "DEVICE": "cpu"},
+            "EVALUATION": {"CONFIG": "experiment/avnav/config/audiogoal.yaml",
+                           "SPLITS": ["val_multiple"], "EPISODES_PER_SPLIT": 1,
+                           "SEED": 11, "MAX_STEPS": 10, "DEVICE": "cpu"},
+            "ENVIRONMENT": {"MAX_EPISODE_STEPS": 10},
+            "SOURCE_AUDIT": {"status": "pass", "TRAIN_SCENES": ["train_scene"],
+                             "VALIDATION_SCENES": ["val_scene"], "UNHEARD_SCENES": [],
+                             "TRAIN_SOURCES": [str(train_raw)], "VALIDATION_SOURCES": [str(val_raw)],
+                             "TRAIN_EPISODE_KEYS": 2, "VALIDATION_EPISODE_KEYS": 1,
+                             "OVERLAP_KEYS": 0, "CHECKSUMS": {}},
+        }))
         config = {"TASK_CONFIG": {
-            "PT": {"FROM_PATH": str(self.raw), "TO_PATH": str(destination), "SHARD_SIZE": 2},
-            "TRAIN": {"DATA_PATH": str(destination), "EPOCHS": 1, "BATCH_SIZE": 2,
-                      "DEVICE": "cpu", "SAVE_DIR": str(checkpoints)}}}
+            "PT": {"OPEN": False, "FROM_PATH": str(train_raw), "TO_PATH": str(destination),
+                   "VAL_FROM_PATH": str(val_raw), "VAL_TO_PATH": str(val_destination),
+                   "SHARD_SIZE": 2, "SHUFFLE": False},
+            "TRAIN": {"OPEN": True, "DATA_PATH": str(destination), "DATA_PATHS": [],
+                      "VAL_DATA_PATH": str(val_destination), "VAL_RATIO": 0.5, "EPOCHS": 1,
+                      "BATCH_SIZE": 2, "NUM_WORKERS": 0, "CACHE_SIZE": 1,
+                      "LEARNING_RATE": 0.0001, "WEIGHT_DECAY": 0.0,
+                      "DEVICE": "cpu", "MODEL_PATH": "", "SAVE_DIR": str(checkpoints),
+                      "TENSORBOARD": False, "LOG_DIR": str(self.root / "tb")}}}
         path = self.root / "config.yaml"
         path.write_text(yaml.safe_dump(config))
         import os
         env = dict(os.environ, OMP_NUM_THREADS="2", MKL_NUM_THREADS="2")
         result = subprocess.run([sys.executable, str(ROOT / "run_avnav.py"), "--config", str(path),
-                                 "--stage", "all"], cwd=self.root, env=env,
-                                capture_output=True, text=True, timeout=90)
+                                 "--offline-config", str(offline_config), "--stage", "all"],
+                                cwd=ROOT, env=env, capture_output=True, text=True, timeout=90)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         weights = torch.load(checkpoints / "model_epoch_1.pth", weights_only=True)
         self.assertTrue(all(torch.isfinite(value).all() for value in weights.values()))
         model = Network()
         model.load_state_dict(weights)
+        self.assertTrue((offline_output / "best_policy.pt").exists())
         config["TASK_CONFIG"]["TRAIN"]["MODEL_PATH"] = str(checkpoints / "model_epoch_1.pth")
         config["TASK_CONFIG"]["TRAIN"]["SAVE_DIR"] = str(self.root / "reloaded")
         path.write_text(yaml.safe_dump(config))
         result = subprocess.run([sys.executable, str(ROOT / "run_avnav.py"), "--config", str(path),
-                                 "--stage", "train"], cwd=self.root, env=env,
+                                 "--stage", "train"], cwd=ROOT, env=env,
                                 capture_output=True, text=True, timeout=90)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue((self.root / "reloaded/model_epoch_1.pth").exists())

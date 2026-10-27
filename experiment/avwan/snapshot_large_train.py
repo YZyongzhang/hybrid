@@ -2,7 +2,7 @@
 
 The output contains symlinks to immutable, completed episode files.  Its index
 is fixed at creation time, so feature extraction sees a stable population.
-Run from the repository root with ``python -m experiment.avwan.snapshot_large_train``.
+Run from the repository root with ``python experiment/avwan/snapshot_large_train.py``.
 """
 import argparse
 import gzip

@@ -1,0 +1,27 @@
+SEED: 20261025
+DATA:
+  TRAIN_PT: /data/Getuanhui/avnav-hybrid-mutiple/pt/train
+  VALIDATION_PT: /data/Getuanhui/avnav-hybrid-mutiple/pt/val
+  VALIDATION_UNHEARD_PT: /data/Getuanhui/avnav-hybrid-mutiple/pt/val_unheard
+  SOURCE_AUDIT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-25-avnav-collision-predictor/audits/cql_lstm/data_source_audit.json
+FOUNDATION:
+  OUTPUT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-27-avnav-real-single-frame/foundation
+  AUDIO_INIT_CHECKPOINT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-17-avnav-staged-cql/foundation/audio_stage/best.pt
+  EPOCHS: 5
+  BATCH_SIZE: 32
+  LEARNING_RATE: 0.00003
+  WEIGHT_DECAY: 0.0001
+  DEVICE: cuda:0
+  WORKERS: 0
+EVALUATION:
+  CONFIG: /home/getuanhui/project/hybrid_offline_RL/experiment/avnav/config/audiogoal.yaml
+  DEVICE: cuda:0
+  SEED: 20261025
+  MAX_STEPS: 200
+  EPISODES_PER_SPLIT: 500
+  DIAGNOSTIC_EPISODES: 30
+  SPLITS:
+    - val_multiple
+    - val_multiple_unheard
+  ACTION_HANDLING: foundation action-head raw argmax; no action override or recovery
+  OUTPUT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-27-avnav-real-single-frame/validation/foundation_head

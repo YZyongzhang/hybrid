@@ -1,0 +1,26 @@
+DATA:
+  TRAIN_PT:
+    - /data/Getuanhui/avnav-hybrid-mutiple/pt/train
+    - result_avnav/2026-10-18-avnav-diversity/data/new_train_pt
+    - result_avnav/2026-10-18-avnav-diversity/iteration2/data/new_train_pt
+    - result_avnav/2026-10-18-avnav-diversity/iteration2/data/new_train_pt_b
+    - result_avnav/2026-10-18-avnav-diversity/iteration2/data/new_train_pt_c2
+    - result_avnav/2026-10-18-avnav-diversity/iteration2/data/new_train_pt_d2
+  VALIDATION_PT: /data/Getuanhui/avnav-hybrid-mutiple/pt/val
+  UNHEARD_PT: /data/Getuanhui/avnav-hybrid-mutiple/pt/val_unheard
+FOUNDATION:
+  OUTPUT: result_avnav/2026-10-18-avnav-diversity/iteration2/foundation
+  AUDIO_EPOCHS: 10
+  ACTION_EPOCHS: 8
+  BATCH_SIZE: 32
+  WORKERS: 0
+  AUDIO_LEARNING_RATE: 0.0001
+  ACTION_LEARNING_RATE: 0.00003
+  GRL_SCALE: 0.35
+  DOMAIN_LOSS_WEIGHT: 1.5
+  AUDIO_FREQ_MASK_WIDTH: 4
+  AUDIO_TIME_MASK_WIDTH: 2
+  SEED: 20261019
+  DEVICE: cuda:0
+  GPU_MEMORY_FRACTION: 0.60
+  CPU_THREADS: 2

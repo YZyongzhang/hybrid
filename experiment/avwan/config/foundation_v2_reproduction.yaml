@@ -1,0 +1,25 @@
+# Rebuild the GRL/action foundation used to initialize the v2 run.
+TASK_CONFIG:
+  TEST:
+    OPEN: false
+  TRAIN:
+    OPEN: true
+    MODE: foundation_two_stage
+    TWO_STAGE_FOUNDATION:
+      OUTPUT: result/2026-10-17-unheard-generalization-v2-reproduction/staged-foundation
+      TRAIN_SOURCE: result/2026-10-17-unheard-generalization-v2-reproduction/train-snapshot
+      HEARD_VALIDATION_SOURCE: /data/Getuanhui/avwan_multiple_greedy_val_heard
+      AUDIO_EPOCHS: 5
+      ACTION_EPOCHS: 5
+      BATCH_SIZE: 8
+      WORKERS: 0
+      AUDIO_LEARNING_RATE: 0.0001
+      ACTION_LEARNING_RATE: 0.00003
+      GRL_SCALE: 0.2
+      DOMAIN_LOSS_WEIGHT: 1.0
+      SEED: 20261012
+      DEVICE: cuda:0
+      GPU_MEMORY_FRACTION: 0.22
+      CPU_THREADS: 2
+      MAX_RSS_MIB: 12000
+      MIN_AVAILABLE_GIB: 12.0

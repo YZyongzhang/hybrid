@@ -1,0 +1,53 @@
+SEED: 20261025
+DATA:
+  TRAIN_EPISODES:
+    - /data/Getuanhui/avnav-hybrid-mutiple/pickle/hybird(heard_train_multiple)
+    - /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-25-avnav-collision-predictor/data/counterfactual_cql_lstm_train/trajectories
+  VALIDATION_EPISODES: /data/Getuanhui/avnav-hybrid-mutiple/pickle/hybird(val_multiple)
+  VALIDATION_UNHEARD_EPISODES: /data/Getuanhui/avnav-hybrid-mutiple/pickle/hybird(val_multiple_unheard)
+  SOURCE_AUDIT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-26-avnav-collision-reward-scaling/audits/data_source_audit.json
+FOUNDATION:
+  CHECKPOINT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-25-avnav-collision-predictor/training/collision_predictor/foundation.pt
+  DEVICE: cuda:0
+  EMBED_BATCH_SIZE: 32
+  FEATURE_SHARD_SIZE: 8192
+OFFLINE_RL:
+  ALGORITHM: cql_lstm
+  OUTPUT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-26-avnav-collision-reward-scaling/offline
+  SEQUENCE_CACHE_ROOT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-25-avnav-collision-predictor/features_safety/step2
+  COLLISION_PREDICTOR_CHECKPOINT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-25-avnav-collision-predictor/training/collision_predictor/collision_predictor.pt
+  EPOCHS: 24
+  UPDATES_PER_EPOCH: 250
+  BATCH_SIZE: 256
+  LEARNING_RATE: 0.0001
+  GAMMA: 0.6
+  ALPHA: 0.1
+  CQL_WEIGHT: 1.0
+  BC_WEIGHT: 3.0
+  TARGET_TAU: 0.005
+  HIDDEN_DIM: 256
+  SEQUENCE_LENGTH: 5
+  DEVICE: cuda:0
+FEATURES:
+  ACTION_HISTORY: true
+  COLLISION_HISTORY: true
+  DISTANCE_DELTA_FEATURE: true
+  LOCAL_GEOMETRY: true
+  FUTURE_COLLISION_RISK_ACTIONS: false
+SAFETY:
+  COLLISION_REWARD_PENALTIES: [0.0, 0.1, 0.25, 0.5]
+  COLLISION_FLAG_SOURCE: train-only recorded transition collision aligned through next-state previous_collision feature
+  VALIDATION_SCORE: mean_SPL_minus_0.1_times_collisions_per_action
+  VALIDATION_SCORE_COEFFICIENT: 0.1
+  SCREEN_EPISODES_PER_SPLIT: 30
+  CONFIRMATION_EPISODES_PER_SPLIT: 500
+  TEST_EPISODES_PER_SPLIT: 1000
+EVALUATION:
+  CONFIG: experiment/avnav/config/audiogoal.yaml
+  SPLITS: [val_multiple, val_multiple_unheard]
+  EPISODES_PER_SPLIT: 30
+  SEED: 20261025
+  MAX_STEPS: 200
+  DEVICE: cuda:0
+ENVIRONMENT:
+  MAX_EPISODE_STEPS: 200

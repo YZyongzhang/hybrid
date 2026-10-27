@@ -12,10 +12,13 @@ from pathlib import Path
 import subprocess
 import sys
 
-from .stop_study import FOUNDATION, PARENT
-
-
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from experiment.avwan.stop_study import FOUNDATION, PARENT
+
+
 DEFAULT_OUTPUT = ROOT / 'result/2026-10-10-heard-unheard-reproduction'
 EVALUATION_CONFIG = ROOT / 'result/10-11/total/2026-10-04-stop-negative-recovery-study/evaluation.yaml'
 EXPECTED = {'test_multiple': 1000, 'test_multiple_unheard': 1000}
@@ -32,7 +35,7 @@ def digest(path):
 
 
 def train(args):
-    from . import train_stop_rl as runner
+    from experiment.avwan import train_stop_rl as runner
 
     args.output.mkdir(parents=True, exist_ok=True)
     runner.OUT = args.output
@@ -203,7 +206,7 @@ def audit(args):
             marker = json.loads((snapshot / 'snapshot.json').read_text())
             if marker['episodes'] != len(base):
                 raise ValueError('Frozen large-data snapshot/cache count mismatch')
-            from .data_pipeline.prepare import snapshot as source_snapshot
+            from experiment.avwan.data_pipeline.prepare import snapshot as source_snapshot
             if source_snapshot(snapshot)[3] != base_manifest['identity']['fingerprint']:
                 raise ValueError('Frozen large-data source files changed since feature extraction')
             index_paths = [Path(marker['source']) / 'episodes.jsonl']
@@ -212,7 +215,7 @@ def audit(args):
             # collector directories. Only frozen snapshot directories carry a
             # snapshot.json marker; verify raw sources by their feature-cache
             # fingerprint instead of assuming every custom cache is a snapshot.
-            from .offline.features import snapshot_sources
+            from experiment.avwan.offline.features import snapshot_sources
             max_episodes = base_manifest['identity'].get('max_episodes', 0)
             if snapshot_sources(source, max_episodes)[3] != base_manifest['identity']['fingerprint']:
                 raise ValueError('Base feature source files changed since feature extraction')
@@ -297,7 +300,7 @@ def evaluate_split(args, split, checkpoint):
         expected = len(range(shard, EXPECTED[split], args.shards))
         folder = args.output / 'full_test' / split / f'shard_{shard}'
         while not complete(folder, expected):
-            cmd = [sys.executable, '-m', 'experiment.avwan.evaluate',
+            cmd = [sys.executable, str(ROOT / 'experiment/avwan/evaluate.py'),
                    '--checkpoint', str(checkpoint), '--foundation-checkpoint', str(args.foundation),
                    '--split', split, '--prediction-interval', str(args.prediction_interval),
                    '--output', str(folder), '--seed', str(args.eval_seed), '--device', args.device,
@@ -361,7 +364,7 @@ def validate(args):
     folder = args.output / 'validation' / split
     evaluation_config = args.evaluation_config or EVALUATION_CONFIG
     while not complete(folder, args.validation_episodes):
-        cmd = [sys.executable, '-m', 'experiment.avwan.evaluate',
+        cmd = [sys.executable, str(ROOT / 'experiment/avwan/evaluate.py'),
                '--checkpoint', str(checkpoint), '--foundation-checkpoint', str(args.foundation),
                '--config', str(evaluation_config), '--split', split,
                '--prediction-interval', str(args.prediction_interval),

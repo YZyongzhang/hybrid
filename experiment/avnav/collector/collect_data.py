@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import argparse
 import json
 import os
 from pathlib import Path
@@ -167,15 +168,15 @@ def run(config_path):
         raise RuntimeError("CUDA requested for AVNav collection but unavailable")
     torch.set_num_threads(2)
 
-    from experiment.avwan.config.default import get_config
-    from ss_baselines.common.environments import AudioNavRLEnv
-    from soundspaces.datasets.audionav_dataset import AudioNavDataset
+    from experiment.avnav.environment.config import get_config
+    from experiment.avnav.environment.avnav_env import AudioNavRLEnv
+    from experiment.avnav.environment.evaluation_episodes import load_episodes
     from experiment.avnav.model.hybrid import Network
 
     env_config_path = Path(settings["ENV_CONFIG"])
     if not env_config_path.is_absolute():
         env_config_path = ROOT / env_config_path
-    config = get_config(str(env_config_path))
+    config = get_config(task_config_path=str(env_config_path))
     config.defrost()
     task = config.TASK_CONFIG.TASK
     task.SENSORS = ["SPECTROGRAM_SENSOR", "AngleSensor"]
@@ -187,20 +188,23 @@ def run(config_path):
     config.TASK_CONFIG.DATASET.CONTENT_SCENES = list(settings["CONTENT_SCENES"])
     config.freeze()
 
-    dataset = AudioNavDataset(config.TASK_CONFIG.DATASET)
     selection_path = Path(settings["SELECTION_PATH"])
     if not selection_path.is_absolute():
         selection_path = ROOT / selection_path
     requested = json.loads(selection_path.read_text(encoding="utf-8"))
+    selection_count = len(requested)
+    episode_start = max(0, int(settings.get("EPISODE_START", 0)))
+    episode_end_value = settings.get("EPISODE_END")
+    episode_end = len(requested) if episode_end_value is None else int(episode_end_value)
+    if episode_end <= episode_start or episode_start >= len(requested):
+        raise ValueError(
+            f"Invalid episode slice [{episode_start}:{episode_end}] for {len(requested)} selected episodes"
+        )
+    requested = requested[episode_start:min(episode_end, len(requested))]
     requested_keys = {(str(row["scene"]), str(row["episode_id"])) for row in requested}
-    selected = [episode for episode in dataset.episodes
-                if (Path(episode.scene_id).stem, str(episode.episode_id)) in requested_keys]
-    selected_keys = {(Path(episode.scene_id).stem, str(episode.episode_id)) for episode in selected}
-    if selected_keys != requested_keys:
-        missing = sorted(requested_keys - selected_keys)[:10]
-        raise ValueError(f"Selection has {len(requested_keys - selected_keys)} episodes absent "
-                         f"from train_multiple: {missing}")
-    if not selected:
+    selected = load_episodes(config.TASK_CONFIG.DATASET, episode_keys=requested_keys)
+    selected_count = len(selected.episodes)
+    if not selected_count:
         raise ValueError("No selected AVNav training episodes")
 
     checkpoint = Path(settings["CHECKPOINT"])
@@ -209,7 +213,7 @@ def run(config_path):
     model = Network().to(device)
     model.load_state_dict(torch.load(checkpoint, map_location=device, weights_only=True))
     model.eval()
-    env = AudioNavRLEnv(config, dataset)
+    env = AudioNavRLEnv(config, selected)
     output = Path(settings["OUTPUT"]).expanduser()
     if not output.is_absolute():
         output = ROOT / output
@@ -225,14 +229,15 @@ def run(config_path):
                     completed.add((row["scene"], str(row["episode_id"])))
     run_record = dict(format_version=1, collection_name=collection_name,
                       policy="AVNavFoundationMixedRecovery",
-                      seed=seed, split="train_multiple", planned=len(selected),
+                      seed=seed, split="train_multiple", planned=selected_count,
+                      episode_slice=[episode_start, min(episode_end, selection_count)],
                       selection=str(selection_path), checkpoint=str(checkpoint),
                       checkpoint_sha256=hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
                       content_scenes=list(settings["CONTENT_SCENES"]),
                       config=settings)
     _write_json(output / "run.json", run_record)
     collector = AVNavCollector(env, model, settings, device)
-    summary = dict(format_version=1, planned=len(selected), completed=len(completed),
+    summary = dict(format_version=1, planned=selected_count, completed=len(completed),
                    saved=len(completed), success=0, errors=0, transitions=0,
                    episodes_index="episodes.jsonl")
     if index_path.exists():
@@ -244,7 +249,7 @@ def run(config_path):
             summary["errors"] += int(previous.get("status") == "error")
             summary["transitions"] += int(previous.get("transitions", 0))
     with index_path.open("a", encoding="utf-8") as index:
-        for progress, episode in enumerate(selected, 1):
+        for progress, episode in enumerate(selected.episodes, 1):
             scene, episode_id = Path(episode.scene_id).stem, str(episode.episode_id)
             if (scene, episode_id) in completed:
                 continue
@@ -276,7 +281,18 @@ def run(config_path):
             summary["errors"] += int(row["status"] == "error")
             summary["transitions"] += int(row.get("transitions", 0))
             _write_json(output / "manifest.json", summary)
-            print(f"{progress}/{len(selected)} {scene}_{episode_id}: {row['status']}, "
+            print(f"{progress}/{selected_count} {scene}_{episode_id}: {row['status']}, "
                   f"saved={row['saved']}", flush=True)
     env.close()
     return int(summary["errors"] > 0)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", default="experiment/avnav/collect.yaml")
+    args = parser.parse_args(argv)
+    return run(args.config)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

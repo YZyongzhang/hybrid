@@ -9,6 +9,7 @@ import pickle
 import random
 import resource
 import shutil
+import sys
 import time
 
 import numpy as np
@@ -16,14 +17,17 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from .data_pipeline.dataset import make_loader
-from .data_pipeline.prepare import INPUTS, prepare as prepare_episodes, write_json
-from .model.hybrid import Network
-from .model.maps import unpack_geometry
-from .training.trainer import save_checkpoint
-
-
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from experiment.avwan.data_pipeline.dataset import make_loader
+from experiment.avwan.data_pipeline.prepare import INPUTS, prepare as prepare_episodes, write_json
+from experiment.avwan.model.hybrid import Network
+from experiment.avwan.model.maps import unpack_geometry
+from experiment.avwan.training.trainer import save_checkpoint
+
+
 DEFAULT_TRAIN_SOURCE = ROOT / 'result/10-11/total/2026-10-11-large-train-snapshot'
 DEFAULT_HEARD_SOURCE = Path('/data/Getuanhui/avwan_multiple_greedy_val_heard')
 NETWORK_CONFIG = {

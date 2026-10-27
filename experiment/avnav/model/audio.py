@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from experiment.avwan.model.Encoder import MultiHeadAttention
+from experiment.avnav.model.Encoder import MultiHeadAttention
 
 
 class MultiHeadAttentionLayer(MultiHeadAttention):

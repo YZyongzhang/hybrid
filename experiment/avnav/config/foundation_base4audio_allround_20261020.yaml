@@ -1,0 +1,41 @@
+DATA:
+  TRAIN_PT:
+  - /data/Getuanhui/avnav-hybrid-mutiple/pt/train
+  - result_avnav/2026-10-18-avnav-diversity/data/new_train_pt
+  - result_avnav/2026-10-18-avnav-diversity/iteration2/data/new_train_pt
+  - result_avnav/2026-10-18-avnav-diversity/iteration2/data/new_train_pt_b
+  - result_avnav/2026-10-18-avnav-diversity/iteration2/data/new_train_pt_c2
+  - result_avnav/2026-10-18-avnav-diversity/iteration2/data/new_train_pt_d2
+  - result_avnav/2026-10-19-avnav-generalization/iteration3/data/new_train_pt_a
+  - result_avnav/2026-10-19-avnav-generalization/iteration3/data/new_train_pt_b
+  - result_avnav/2026-10-19-avnav-generalization/iteration3/data/new_train_pt_c
+  - /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-19-avnav-generalization/iteration4/data/new_train_pt_a
+  - /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-19-avnav-generalization/iteration4/data/new_train_pt_b
+  - /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-19-avnav-generalization/iteration4/data/new_train_pt_c
+  - /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-19-avnav-generalization/iteration5/data/new_train_pt_a
+  - /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-19-avnav-generalization/iteration5/data/new_train_pt_b
+  - /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-19-avnav-generalization/iteration5/data/new_train_pt_c
+  - /data/Getuanhui/avnav_diverse_round6_pt_a_20261019
+  - /data/Getuanhui/avnav_diverse_round6_pt_b_20261019
+  - /data/Getuanhui/avnav_diverse_round6_pt_c_20261019
+  - /data/Getuanhui/avnav_diverse_round6_pt_d_20261019
+  - /data/Getuanhui/avnav_diverse_round6_pt_e_20261019
+  - /data/Getuanhui/avnav_diverse_round6_pt_f_20261019
+  VALIDATION_PT: /data/Getuanhui/avnav-hybrid-mutiple/pt/val
+  UNHEARD_PT: /data/Getuanhui/avnav-hybrid-mutiple/pt/val_unheard
+FOUNDATION:
+  OUTPUT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-19-avnav-generalization/iteration6/foundation_base4audio_allround
+  AUDIO_EPOCHS: 18
+  ACTION_EPOCHS: 12
+  BATCH_SIZE: 32
+  WORKERS: 0
+  AUDIO_LEARNING_RATE: 0.0001
+  ACTION_LEARNING_RATE: 3.0e-05
+  GRL_SCALE: 0.85
+  DOMAIN_LOSS_WEIGHT: 2.5
+  AUDIO_FREQ_MASK_WIDTH: 10
+  AUDIO_TIME_MASK_WIDTH: 6
+  SEED: 20261091
+  DEVICE: cuda:0
+  GPU_MEMORY_FRACTION: 0.6
+  CPU_THREADS: 2

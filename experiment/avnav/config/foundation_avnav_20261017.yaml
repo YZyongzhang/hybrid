@@ -1,0 +1,18 @@
+DATA:
+  TRAIN_PT: /data/Getuanhui/avnav-hybrid-mutiple/pt/train
+  VALIDATION_PT: /data/Getuanhui/avnav-hybrid-mutiple/pt/val
+  UNHEARD_PT: /data/Getuanhui/avnav-hybrid-mutiple/pt/val_unheard
+FOUNDATION:
+  OUTPUT: result_avnav/2026-10-17-avnav-staged-cql/foundation
+  AUDIO_EPOCHS: 5
+  ACTION_EPOCHS: 5
+  BATCH_SIZE: 32
+  WORKERS: 0
+  AUDIO_LEARNING_RATE: 0.0001
+  ACTION_LEARNING_RATE: 0.00003
+  GRL_SCALE: 0.2
+  DOMAIN_LOSS_WEIGHT: 1.0
+  SEED: 20261017
+  DEVICE: cuda:0
+  GPU_MEMORY_FRACTION: 0.60
+  CPU_THREADS: 2
