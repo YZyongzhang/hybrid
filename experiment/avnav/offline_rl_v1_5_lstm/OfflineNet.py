@@ -1,5 +1,4 @@
 import numpy as np
-import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -50,7 +49,6 @@ class SAC_LSTM_CQL_v1_5(nn.Module):
         device,
         lstm_hidden_dim=256,
         lstm_num_layers=1,
-        use_target_encoder=False,
     ):
         super().__init__()
         self.device = device
@@ -66,10 +64,6 @@ class SAC_LSTM_CQL_v1_5(nn.Module):
             num_layers=lstm_num_layers,
             batch_first=True,
         ).to(device)
-
-        if use_target_encoder:
-            self.target_temporal_encoder = copy.deepcopy(self.temporal_encoder)
-            self.target_temporal_encoder.requires_grad_(False)
 
         self.actor = PolicyNet(lstm_hidden_dim, hidden_dim, action_dim).to(device)
         self.critic_1 = QValueNet(lstm_hidden_dim, hidden_dim, action_dim).to(device)
@@ -140,11 +134,86 @@ class SAC_LSTM_CQL_v1_5(nn.Module):
         for target_param, param in zip(target_net.parameters(), net.parameters()):
             target_param.data.copy_(target_param.data * (1.0 - self.tau) + param.data * self.tau)
 
-    def update(self, states, actions, rewards, next_states, dones, bc_weight=0.0, sample_bc_weights=None):
-        """One transition per sequence, using the same update as the training runner."""
-        from experiment.avnav.train_codex_saccql_lstm import _optimizer_update
-        actions = actions.long().reshape(-1)
-        if sample_bc_weights is None:
-            sample_bc_weights = torch.ones_like(actions, dtype=torch.float32)
-        return _optimizer_update(self, states, actions, rewards.reshape(-1), next_states,
-                                 dones.reshape(-1), sample_bc_weights, bc_weight)
+    def update(self, states, actions, rewards, next_states, dones):
+        seq_states = self._encode_sequence(states)
+        seq_next_states = self._encode_sequence(next_states)
+
+        states_flat = self._flatten_time(seq_states)
+        next_states_flat = self._flatten_time(seq_next_states)
+        # states_actor = states_flat.detach()
+
+        rewards = self._reshape_vector(rewards).float().to(self.device)
+        dones = self._reshape_vector(dones).float().to(self.device)
+        actions = self._reshape_vector(actions).long().to(self.device).unsqueeze(1)
+
+        probs = self.actor(states_flat)
+        log_probs = torch.log(probs + 1e-8)
+        entropy = -torch.sum(probs * log_probs, dim=1, keepdim=True)
+        q1_value = self.critic_1(states_flat).detach()
+        q2_value = self.critic_2(states_flat).detach()
+        min_qvalue = torch.sum(probs * torch.min(q1_value, q2_value), dim=1, keepdim=True)
+        actor_loss = torch.mean(-self.log_alpha.exp() * entropy - min_qvalue)
+
+        self.actor_optimizer.zero_grad()
+        actor_loss.backward()
+        self.actor_optimizer.step()
+
+        alpha_loss = torch.mean((entropy - self.target_entropy).detach() * self.log_alpha.exp())
+        self.log_alpha_optimizer.zero_grad()
+        alpha_loss.backward()
+        self.log_alpha_optimizer.step()
+        
+        # 更新 critic 网络，重新进行LSTM的encode
+        seq_states = self._encode_sequence(states)
+        seq_next_states = self._encode_sequence(next_states)
+
+        states_flat = self._flatten_time(seq_states)
+        next_states_flat = self._flatten_time(seq_next_states)
+        td_target = self.calc_target(rewards, next_states_flat, dones).detach()
+
+        critic_1_q_values = self.critic_1(states_flat)
+        critic_1_q_taken = critic_1_q_values.gather(1, actions).squeeze(1)
+        critic_1_loss = torch.mean(F.mse_loss(critic_1_q_taken, td_target))
+
+        critic_2_q_values = self.critic_2(states_flat)
+        critic_2_q_taken = critic_2_q_values.gather(1, actions).squeeze(1)
+        critic_2_loss = torch.mean(F.mse_loss(critic_2_q_taken, td_target))
+        
+        # 从公式上来看，cql这里的实现有一些问题。目前先不动这个。控制变量。
+        # cql1_scaled_loss = torch.logsumexp(critic_1_q_values, dim=1).mean() - critic_1_q_values.mean()
+        # cql2_scaled_loss = torch.logsumexp(critic_2_q_values, dim=1).mean() - critic_2_q_values.mean()
+        cql1_scaled_loss = torch.logsumexp(critic_1_q_values, dim=1).mean() - critic_1_q_taken.mean()
+        cql2_scaled_loss = torch.logsumexp(critic_2_q_values, dim=1).mean() - critic_2_q_taken.mean()
+
+        cql_1_loss = critic_1_loss + self.beta * cql1_scaled_loss
+        cql_2_loss = critic_2_loss + self.beta * cql2_scaled_loss
+        total_critic_loss = cql_1_loss + cql_2_loss
+
+        self.temporal_optimizer.zero_grad()
+        self.critic_1_optimizer.zero_grad()
+        self.critic_2_optimizer.zero_grad()
+        total_critic_loss.backward()
+
+        clip_grad_norm_(self.temporal_encoder.parameters(), self.clip_grad_param)
+        clip_grad_norm_(self.critic_1.parameters(), self.clip_grad_param)
+        clip_grad_norm_(self.critic_2.parameters(), self.clip_grad_param)
+
+        self.temporal_optimizer.step()
+        self.critic_1_optimizer.step()
+        self.critic_2_optimizer.step()
+
+        self.soft_update(self.critic_1, self.target_critic_1)
+        self.soft_update(self.critic_2, self.target_critic_2)
+
+        return {
+            "critic1_loss": critic_1_loss.item(),
+            "critic2_loss": critic_2_loss.item(),
+            "cql1_scaled_loss": cql1_scaled_loss.item(),
+            "cql2_scaled_loss": cql2_scaled_loss.item(),
+            "actor_loss": actor_loss.item(),
+            "alpha_loss": alpha_loss.item(),
+            "cql_1_loss": cql_1_loss.item(),
+            "cql_2_loss": cql_2_loss.item(),
+            "entropy": entropy.mean().item(),
+            "alpha": self.log_alpha.exp().item(),
+        }
