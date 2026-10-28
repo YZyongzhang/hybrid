@@ -1,0 +1,5 @@
+1. 首先训练foundation里面的audio模块。训练完成之后freeze住audio模块进行整体训练。
+2. foundation训练完毕之后，freeze住foundation然后提取特征。用提取的特征进行训练lstm-sac-cql
+3. 数据有collision的数据，针对碰撞的问题，可以进行reward的缩放，让offlineRL更好的学习避免碰撞。
+4. 最后在val上找到一个最好的模型，然后用这个模型在整个test分为heard和unheard上进行测试。
+训练思路如果有不清晰的，可以去project/finnal_exp里面进行寻找。

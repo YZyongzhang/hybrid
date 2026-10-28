@@ -57,3 +57,24 @@ The model definitions are in `models/foundation.py` and
 `models/offline_sac_v1_5.py`. They are copied from the matching `finnal_exp`
 network implementations. Runtime dependencies are PyTorch and NumPy, plus the
 sensor frontend that produces the simulator-compatible spectrogram.
+
+## Inference records
+
+The HTTP inference server stores each successfully evaluated observation under
+`real_experiment/inference_records/`. RGB images are saved as PNG files in
+`images/`, and the received stereo audio is saved as 48 kHz, 16-bit PCM WAV
+files in `audio/`. Both filenames end with `_a<action_id>` (for example,
+`_a3.png` and `_a3.wav`) using the policy's returned action ID unchanged.
+`requests.jsonl` and `commands.jsonl` record the same action ID and map each
+input to its session, sequence, and request IDs.
+
+Every 30 steps, the server also concatenates those 30 raw PCM clips into a WAV
+under `audio_batches/`. `audio_batches.jsonl` records the session, original
+step sequence numbers, per-step WAV paths, action IDs, and sample counts for
+each batch.
+The individual WAV files remain available under `audio/`. This aggregation is
+for debugging only: inference still uses the current step's audio and the
+policy's inputs and outputs are unchanged.
+
+Use `--record-dir PATH` with `inference_server.py` to choose a different
+archive location. The default is `real_experiment/inference_records/`.

@@ -1,10 +1,14 @@
 import argparse
 import base64
 import binascii
+import hashlib
+import io
 import json
 import os
 import sys
 import threading
+import time
+import wave
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -21,10 +25,12 @@ IMAGE_SIZE = 128
 MAX_BODY_BYTES = 16 * 1024 * 1024
 MAX_IMAGE_SIDE = 4096
 MAX_AUDIO_SECONDS = 10
+AUDIO_BATCH_STEPS = 30
 SERVER_PACKAGE = Path(__file__).resolve().parent
 SERVER_ROOT = SERVER_PACKAGE.parent
 CLIENT_PACKAGE = SERVER_ROOT.parent
 CHECKPOINT_DIR = SERVER_PACKAGE / "checkpoints"
+DEFAULT_RECORD_DIR = SERVER_PACKAGE / "inference_records"
 
 # Resolve the project model package when this file is run directly or imported.
 sys.path.insert(0, str(SERVER_PACKAGE))
@@ -152,8 +158,8 @@ def stereo_pcm_to_spectrogram(audio_pcm, sample_rate=SAMPLE_RATE):
     else:
         audio = audio.astype(np.float32, copy=False)
 
-    # The policy was trained on one-second SoundSpaces audio observations.
-    # Use the latest second and left-pad startup buffers shorter than one second.
+    # The model input remains one second: use the latest second and left-pad
+    # startup buffers shorter than one second.
     window_samples = SAMPLE_RATE
     if audio.shape[0] > window_samples:
         audio = audio[-window_samples:]
@@ -272,6 +278,128 @@ def decode_observation(payload):
     return session_id, sequence, request_id, audio, rgb, depth
 
 
+class ObservationArchive:
+    """Save each accepted observation and the policy action returned for it."""
+
+    def __init__(self, directory):
+        self.directory = Path(directory)
+        self.images_dir = self.directory / "images"
+        self.audio_dir = self.directory / "audio"
+        self.audio_batches_dir = self.directory / "audio_batches"
+        self.images_dir.mkdir(parents=True, exist_ok=True)
+        self.audio_dir.mkdir(parents=True, exist_ok=True)
+        self.audio_batches_dir.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.Lock()
+
+    def save_observation(self, session_id, sequence, request_id, audio, rgb, action_id):
+        session_key = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:12]
+        request_key = hashlib.sha256(request_id.encode("utf-8")).hexdigest()[:12]
+        stem = "{}_s{}_q{}_{}_a{}".format(
+            time.time_ns(), session_key, sequence, request_key, int(action_id)
+        )
+
+        success, encoded_rgb = cv2.imencode(
+            ".png", cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+        )
+        if not success:
+            raise ValueError("could not encode received RGB image for archiving")
+        image_path = self.images_dir / (stem + ".png")
+
+        audio_buffer = io.BytesIO()
+        with wave.open(audio_buffer, "wb") as wav_file:
+            wav_file.setnchannels(2)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(SAMPLE_RATE)
+            wav_file.writeframes(np.asarray(audio, dtype="<i2").tobytes())
+        audio_path = self.audio_dir / (stem + ".wav")
+
+        # Write through temporary files so a partially written sensor file is
+        # never mistaken for a complete observation after a server interruption.
+        self._write_atomic(image_path, encoded_rgb.tobytes())
+        self._write_atomic(audio_path, audio_buffer.getvalue())
+
+        record = {
+            "timestamp_ns": time.time_ns(),
+            "session_id": session_id,
+            "sequence": sequence,
+            "request_id": request_id,
+            "action_id": int(action_id),
+            "image": str(image_path.relative_to(self.directory)),
+            "audio": str(audio_path.relative_to(self.directory)),
+        }
+        self._append_jsonl(self.directory / "requests.jsonl", record)
+        return record
+
+    def save_audio_batch(self, session_id, step_observations):
+        """Save concatenated PCM and the original per-step archive references."""
+        if not step_observations:
+            raise ValueError("audio batch must contain at least one step")
+        sequences = [int(item[0]) for item in step_observations]
+        if any(right != left + 1 for left, right in zip(sequences, sequences[1:])):
+            raise ValueError("audio batch sequences must be consecutive")
+
+        combined_audio = np.concatenate(
+            [item[1] for item in step_observations], axis=0
+        )
+        session_key = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:12]
+        start_sequence, end_sequence = sequences[0], sequences[-1]
+        stem = "s{}_q{:06d}-{:06d}_{}".format(
+            session_key, start_sequence, end_sequence, time.time_ns()
+        )
+        audio_buffer = io.BytesIO()
+        with wave.open(audio_buffer, "wb") as wav_file:
+            wav_file.setnchannels(2)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(SAMPLE_RATE)
+            wav_file.writeframes(np.asarray(combined_audio, dtype="<i2").tobytes())
+        audio_path = self.audio_batches_dir / (stem + ".wav")
+        self._write_atomic(audio_path, audio_buffer.getvalue())
+
+        record = {
+            "timestamp_ns": time.time_ns(),
+            "session_id": session_id,
+            "start_sequence": start_sequence,
+            "end_sequence": end_sequence,
+            "sequences": sequences,
+            "audio": str(audio_path.relative_to(self.directory)),
+            "samples": int(combined_audio.shape[0]),
+            "source_steps": [
+                {
+                    "sequence": int(sequence),
+                    "request_id": observation["request_id"],
+                    "action_id": int(observation["action_id"]),
+                    "audio": observation["audio"],
+                    "samples": int(raw_audio.shape[0]),
+                }
+                for sequence, raw_audio, observation in step_observations
+            ],
+        }
+        self._append_jsonl(self.directory / "audio_batches.jsonl", record)
+        return record
+
+    def record_command(self, observation_record, action_id):
+        record = dict(observation_record)
+        record["action_id"] = int(action_id)
+        self._append_jsonl(self.directory / "commands.jsonl", record)
+
+    def _append_jsonl(self, path, record):
+        line = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
+        with self._lock:
+            with path.open("a", encoding="utf-8") as output_file:
+                output_file.write(line)
+                output_file.flush()
+
+    @staticmethod
+    def _write_atomic(path, contents):
+        temporary_path = path.with_name(path.name + ".tmp")
+        try:
+            temporary_path.write_bytes(contents)
+            os.replace(temporary_path, path)
+        finally:
+            if temporary_path.exists():
+                temporary_path.unlink()
+
+
 class StatefulInferenceHandler(BaseHTTPRequestHandler):
     server_version = "AVNavRealExperiment/1.0"
 
@@ -308,6 +436,7 @@ class StatefulInferenceHandler(BaseHTTPRequestHandler):
             return
 
         # The policy keeps previous RGB-D frames and a five-step LSTM history.
+        # Audio batching is archival only; inference uses the current step's audio.
         # One lock preserves that ordering and this service is scoped to one robot.
         with self.server.policy_lock:
             if session_id == self.server.session_id and sequence == self.server.last_sequence:
@@ -321,6 +450,7 @@ class StatefulInferenceHandler(BaseHTTPRequestHandler):
                     self.send_json(409, {"error": "a new session must start at sequence 0"})
                     return
                 self.server.policy.reset()
+                self.server.audio_batch.clear()
                 self.server.session_id = session_id
                 self.server.last_sequence = -1
                 self.server.last_request_id = None
@@ -340,10 +470,21 @@ class StatefulInferenceHandler(BaseHTTPRequestHandler):
                     observation["spectrogram"], observation["rgb"], observation["depth"]))
                 if action_id not in (0, 1, 2, 3):
                     raise ValueError("policy returned action outside 0..3")
+                archived_observation = self.server.observation_archive.save_observation(
+                    session_id, sequence, request_id, audio, rgb, action_id
+                )
+                self.server.audio_batch.append((sequence, audio, archived_observation))
+                if len(self.server.audio_batch) == AUDIO_BATCH_STEPS:
+                    self.server.observation_archive.save_audio_batch(
+                        session_id, self.server.audio_batch
+                    )
+                    self.server.audio_batch.clear()
+                self.server.observation_archive.record_command(archived_observation, action_id)
             except Exception as exc:
                 # Inference may have advanced recurrent state. Require a new
                 # session before accepting another observation after a failure.
                 self.server.policy.reset()
+                self.server.audio_batch.clear()
                 self.server.session_id = None
                 self.server.last_sequence = -1
                 self.server.last_request_id = None
@@ -384,6 +525,8 @@ def main():
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--token", default=os.environ.get("REMOTE_INFERENCE_TOKEN"))
+    parser.add_argument("--record-dir", default=str(DEFAULT_RECORD_DIR),
+                        help="directory for received RGB/audio and policy action records")
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
@@ -396,6 +539,8 @@ def main():
     server = ThreadingHTTPServer((args.host, args.port), StatefulInferenceHandler)
     server.frontend = prepare_observation
     server.policy = policy
+    server.observation_archive = ObservationArchive(args.record_dir)
+    server.audio_batch = []
     server.policy_lock = threading.Lock()
     server.session_id = None
     server.last_sequence = -1
@@ -406,6 +551,8 @@ def main():
     print("AVNav inference API listening at http://{}:{}/v1/step".format(
         args.host, args.port), flush=True)
     print("Policy history is retained per session; action IDs are returned unchanged.", flush=True)
+    print("Audio archives are concatenated in batches of {} steps; model input remains per-step.".format(
+        AUDIO_BATCH_STEPS), flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

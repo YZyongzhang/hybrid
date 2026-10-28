@@ -18,3 +18,10 @@ result_avnav/
 *.log
 *.tmp
 
+# Keep the selected AVNav migration checkpoints and their training record.
+!experiment/avnav/foundation/checkpoints/
+!experiment/avnav/foundation/checkpoints/*.pth
+!experiment/avnav/offline_rl_v1_5_lstm/checkpoints/
+!experiment/avnav/offline_rl_v1_5_lstm/checkpoints/*.pth
+!experiment/avnav/offline_rl_v1_5_lstm/logs/train_OfflineRL_20260606_003415.log
+

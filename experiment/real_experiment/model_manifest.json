@@ -20,6 +20,8 @@
   "inference": {
     "modalities": ["audio spectrogram", "RGB", "depth"],
     "visual_context": "previous and current frames concatenated along width",
+    "audio_archive_batch_steps": 30,
+    "audio_archive_batching": "non-overlapping raw PCM concatenation with source step references; model input unchanged",
     "policy_history_length": 5,
     "deterministic_actions": true,
     "action_count": 4,

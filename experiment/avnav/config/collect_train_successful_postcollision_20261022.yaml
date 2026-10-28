@@ -1,8 +1,0 @@
-SEED: 20261027
-FOUNDATION:
-  CHECKPOINT: /home/getuanhui/project/hybrid_offline_RL/result_avnav/2026-10-17-avnav-staged-cql/foundation/best.pth
-EVALUATION:
-  CONFIG: experiment/avnav/config/audiogoal.yaml
-  SEED: 20261027
-  DEVICE: cuda:0
-  MAX_STEPS: 200
