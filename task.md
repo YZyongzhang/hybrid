@@ -1,16 +1,15 @@
-！禁止阅读trash/
+！禁止阅读trash/ result。除非指令明确给出可以阅读的路径
 python 环境为 ss
+充分利用GPU和CPU加快实验运行速度。
 1. 数据位置：
     1.1 train数据集：/data/getuanhui/avnav-hybrid-mutiple/pickle
     1.2 val数据集： /data2/getuanhui/avnav-codex-val
-2. 实验所有内容存放位置: /home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp
+2. 实验所有内容存放位置: /home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb
 3. foundaiton model 位置：experiment/avnav/hybrid , 不可更改模型
 4. offlineRL 位置：experiment/avnav/offline_rl_v1_5_lstm ， 不可更改模型
 
-实验pipeline：充分利用GPU和CPU加快实验运行速度。
-1. 在不改变模型结构的情况下训练avnav的模型。offlineRL最终test spl要超过0.25.unheard超过0.15就可以
-2. 在测试的时候不能使用rule base的方式。
-3. 你可以尝试任何方式进行训练，增加数据，调整训练方式，修改训练loss等一系列内容。如果训练出来的model没有达到要求的spl，就必须要再次寻找其他方式更高的model。
-4. 没有达到目标之前，必须持续工作。
-5. 必须要充分利用gpu和cpu资源，尽量跑满，加快实验速度。
-7. 监控输出token，如果达到百万输出就终止实验
+实验任务：
+1. 阅读result中的2026-10-28-avnav-codex_attemp。找出最好模型训练的那一版本的方式。然后在experiment/avnav/下创建一个rgb-only。里面的foundation和offline代码几乎和另外两个一致。唯一区别就是输入改成了rgb。
+2. 训练rgb的avnav模型。如果效果不好，请不断迭代进行实验。一直可以让在完整的test集合上heardspl到0.25以上。unheard0.15以上。
+3. 训练不能使用val或者是test数据集进行训练，造成数据污染。
+4. inputtoken不超过一千万，输出token不超过一百万。如果超过了，请停止实验。

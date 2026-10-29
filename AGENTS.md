@@ -31,7 +31,7 @@ offline-RL training, validation, and test evaluation.
   Do not train or fine-tune on validation data.
 - Keep test data for final evaluation after the model, checkpoint, and
   settings are frozen. Do not use test observations, actions, rewards, labels,
-  trajectories, or metrics to train, augment, tune, select, or debug a candidate.
+  trajectories, or metrics to train, select, or debug a candidate.
 - Preserve split manifests and episode/scene IDs. Before training, check and
   record the provenance and overlap of all data sources against the train,
   validation, and test manifests. Any validation/test leakage invalidates the
