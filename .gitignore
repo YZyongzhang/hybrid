@@ -6,7 +6,8 @@ experiment/avnav/result/
 .cache/
 result/
 result_avnav/
-
+trash/
+inference_records/
 # Generated experiment artifacts and large model/data files
 **/runs/
 **/data_cache/

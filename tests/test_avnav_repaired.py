@@ -9,12 +9,12 @@ import gzip
 from pathlib import Path
 from experiment.avnav.hybrid.preprocessing import normalize_audio, spatial_tokens
 from experiment.avnav.hybrid.foundation_model import Network
-from experiment.avnav.train_codex_saccql_lstm import TransitionFeatures, _optimizer_update
+from trash.train_codex_saccql_lstm import TransitionFeatures, _optimizer_update
 from experiment.avnav.offline_rl_v1_5_lstm.OfflineNet import SAC_LSTM_CQL_v1_5
-from experiment.avnav.evaluate_codex_saccql_lstm import _run_episode, _prepare_runtime_dataset_manifest
-from experiment.avnav.run_repaired_pipeline import checked_result
-from experiment.avnav.evaluate_repaired import verify_frozen
-from experiment.avnav.train_codex_foundation import _sha256
+from trash.evaluate_codex_saccql_lstm import _run_episode, _prepare_runtime_dataset_manifest
+from trash.run_repaired_pipeline import checked_result
+from trash.evaluate_repaired import verify_frozen
+from trash.train_codex_foundation import _sha256
 
 
 def policy(state_dim=260):
