@@ -36,7 +36,8 @@ DEFAULT_RECORD_DIR = SERVER_PACKAGE / "inference_records"
 sys.path.insert(0, str(SERVER_PACKAGE))
 sys.path.insert(0, str(SERVER_ROOT))
 sys.path.insert(0, str(CLIENT_PACKAGE))
-from experiment.avnav.model.hybrid import Network as AVNavCheckpointFoundation  # noqa: E402
+sys.path.append("/home/getuanhui/project/hybrid_offline_RL")
+from experiment.avnav.hybrid.foundation_model import Network as AVNavCheckpointFoundation  # noqa: E402
 from real_experiment.models.offline_sac_v1_5 import SAC_LSTM_CQL_v1_5  # noqa: E402
 
 
