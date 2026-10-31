@@ -9,7 +9,6 @@ import sys
 import threading
 import time
 import wave
-from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -32,113 +31,13 @@ CLIENT_PACKAGE = SERVER_ROOT.parent
 CHECKPOINT_DIR = SERVER_PACKAGE / "checkpoints"
 DEFAULT_RECORD_DIR = SERVER_PACKAGE / "inference_records"
 
-# Resolve the project model package when this file is run directly or imported.
-sys.path.insert(0, str(SERVER_PACKAGE))
+# Use the same packaged RGB+audio policy for Python and HTTP inference.
 sys.path.insert(0, str(SERVER_ROOT))
-sys.path.insert(0, str(CLIENT_PACKAGE))
-sys.path.append("/home/getuanhui/project/hybrid_offline_RL")
-from experiment.avnav.hybrid.foundation_model import Network as AVNavCheckpointFoundation  # noqa: E402
-from real_experiment.models.offline_sac_v1_5 import SAC_LSTM_CQL_v1_5  # noqa: E402
+from real_experiment.policy import AVNavRealPolicy, DEFAULT_FOUNDATION, DEFAULT_POLICY  # noqa: E402
 
 
-class AVNavInferencePolicy:
-    """Load and run the bundled checkpoint pair with its original tensor layout."""
-
-    def __init__(self, foundation_checkpoint, policy_checkpoint, device=None,
-                 deterministic=True, sequence_length=5):
-        self.device = torch.device(
-            device if device is not None else ("cuda" if torch.cuda.is_available() else "cpu")
-        )
-        self.deterministic = bool(deterministic)
-        self.sequence_length = int(sequence_length)
-        self.foundation = AVNavCheckpointFoundation().to(self.device)
-
-        foundation_state = torch.load(foundation_checkpoint, map_location=self.device)
-        if not isinstance(foundation_state, dict):
-            raise TypeError("foundation checkpoint must contain a state dictionary")
-        # The packaged foundation checkpoint predates the local attention
-        # module's parameter naming. These are direct name aliases for the same
-        # four projection layers; all other weights are loaded strictly.
-        for old_prefix, new_prefix in (
-            ("audio_encoder.attn.fc_q.", "audio_encoder.attn.w_q."),
-            ("audio_encoder.attn.fc_k.", "audio_encoder.attn.w_k."),
-            ("audio_encoder.attn.fc_v.", "audio_encoder.attn.w_v."),
-            ("audio_encoder.attn.fc_o.", "audio_encoder.attn.w_concat."),
-        ):
-            for old_key in [key for key in foundation_state if key.startswith(old_prefix)]:
-                new_key = new_prefix + old_key[len(old_prefix):]
-                if new_key in foundation_state:
-                    raise ValueError("foundation checkpoint contains duplicate attention weights")
-                foundation_state[new_key] = foundation_state.pop(old_key)
-        self.foundation.load_state_dict(foundation_state, strict=True)
-        self.foundation.eval()
-
-        self.policy = SAC_LSTM_CQL_v1_5(
-            state_dim=256,
-            hidden_dim=128,
-            action_dim=4,
-            actor_lr=2e-5,
-            critic_lr=5e-5,
-            alpha_lr=1e-5,
-            target_entropy=1.08,
-            tau=0.005,
-            gamma=0.75,
-            beta=0.5,
-            device=self.device,
-            lstm_hidden_dim=256,
-            lstm_num_layers=1,
-        ).to(self.device)
-        policy_state = torch.load(policy_checkpoint, map_location=self.device)
-        self.policy.load_state_dict(policy_state, strict=True)
-        self.policy.eval()
-        self.reset()
-
-    def reset(self):
-        self._previous_rgb = None
-        self._previous_depth = None
-        self._states = deque(maxlen=self.sequence_length)
-
-    @torch.inference_mode()
-    def act(self, spectrogram, rgb, depth):
-        audio_tensor = torch.as_tensor(spectrogram, dtype=torch.float32)
-        rgb_tensor = torch.as_tensor(rgb, dtype=torch.float32)
-        depth_tensor = torch.as_tensor(depth, dtype=torch.float32)
-        if depth_tensor.ndim == 2:
-            depth_tensor = depth_tensor.unsqueeze(-1)
-        if rgb_tensor.ndim != 3 or rgb_tensor.shape[-1] != 3:
-            raise ValueError("rgb must be HWC with 3 channels")
-        if depth_tensor.ndim != 3 or depth_tensor.shape[-1] != 1:
-            raise ValueError("depth must be HW or HWC with 1 channel")
-        if rgb_tensor.shape[:2] != depth_tensor.shape[:2]:
-            raise ValueError("rgb and depth spatial dimensions must match")
-
-        if self._previous_rgb is None:
-            previous_rgb = torch.zeros_like(rgb_tensor)
-            previous_depth = torch.zeros_like(depth_tensor)
-        else:
-            previous_rgb = self._previous_rgb
-            previous_depth = self._previous_depth
-
-        # This checkpoint's visual encoder expects eight channels: previous
-        # and current RGB (6), then previous and current depth (2). The training
-        # evaluator concatenates these in HWC's channel axis before encoding.
-        rgb_pair = torch.cat((previous_rgb, rgb_tensor), dim=-1)
-        depth_pair = torch.cat((previous_depth, depth_tensor), dim=-1)
-        embedding = self.foundation.embedding_forward(
-            audio_tensor.to(self.device), rgb_pair.to(self.device), depth_pair.to(self.device)
-        ).detach().reshape(-1)
-        if embedding.numel() != 256:
-            raise ValueError("foundation embedding must contain 256 values")
-
-        self._states.append(embedding)
-        history = list(self._states)
-        while len(history) < self.sequence_length:
-            history.insert(0, torch.zeros_like(embedding))
-        state_sequence = torch.stack(history, dim=0).unsqueeze(0).to(self.device)
-        action = int(self.policy.get_action(state_sequence, eval=self.deterministic))
-        self._previous_rgb = rgb_tensor
-        self._previous_depth = depth_tensor
-        return action
+class AVNavInferencePolicy(AVNavRealPolicy):
+    """HTTP-compatible name for the validation-selected RGB+audio policy."""
 
 
 def stereo_pcm_to_spectrogram(audio_pcm, sample_rate=SAMPLE_RATE):
@@ -201,19 +100,13 @@ def stereo_pcm_to_spectrogram(audio_pcm, sample_rate=SAMPLE_RATE):
     return spectrogram
 
 
-def prepare_observation(audio_pcm, rgb, depth, sample_rate):
+def prepare_observation(audio_pcm, rgb, depth=None, sample_rate=SAMPLE_RATE):
     """Prepare robot sensor inputs in the AVNav model's observation format."""
     spectrogram = stereo_pcm_to_spectrogram(audio_pcm, sample_rate=sample_rate)
     rgb_model_input = cv2.resize(rgb, (IMAGE_SIZE, IMAGE_SIZE),
                                  interpolation=cv2.INTER_LINEAR).astype(np.float32) / 255.0
-    depth_model_input = cv2.resize(
-        depth.astype(np.float32, copy=False), (IMAGE_SIZE, IMAGE_SIZE),
-        interpolation=cv2.INTER_LINEAR)
-    return {
-        "spectrogram": spectrogram,
-        "rgb": rgb_model_input,
-        "depth": depth_model_input.astype(np.float32, copy=False),
-    }
+    return {"spectrogram": spectrogram, "rgb": rgb_model_input}
+
 
 
 def decode_base64(value, field):
@@ -265,17 +158,19 @@ def decode_observation(payload):
     if rgb_shape != list(rgb.shape):
         raise ValueError("rgb_shape does not match decoded RGB image")
 
-    depth_shape = payload.get("depth_shape")
-    if depth_shape != list(rgb.shape[:2]):
-        raise ValueError("depth_shape must match the RGB image height and width")
-    if payload.get("depth_dtype") != "float32-le":
-        raise ValueError("depth_dtype must be float32-le")
-    # The client creates this zero plane locally because this robot has no depth sensor.
-    depth_bytes = decode_base64(payload.get("depth_base64"), "depth_base64")
-    expected_depth_bytes = rgb.shape[0] * rgb.shape[1] * np.dtype("<f4").itemsize
-    if len(depth_bytes) != expected_depth_bytes:
-        raise ValueError("depth payload byte length does not match depth_shape")
-    depth = np.frombuffer(depth_bytes, dtype="<f4").reshape(depth_shape).copy()
+    depth = None
+    if any(field in payload for field in ("depth_shape", "depth_dtype", "depth_base64")):
+        depth_shape = payload.get("depth_shape")
+        if depth_shape != list(rgb.shape[:2]):
+            raise ValueError("depth_shape must match the RGB image height and width")
+        if payload.get("depth_dtype") != "float32-le":
+            raise ValueError("depth_dtype must be float32-le")
+        # Validate legacy client payloads; depth never enters the RGB+audio model.
+        depth_bytes = decode_base64(payload.get("depth_base64"), "depth_base64")
+        expected_depth_bytes = rgb.shape[0] * rgb.shape[1] * np.dtype("<f4").itemsize
+        if len(depth_bytes) != expected_depth_bytes:
+            raise ValueError("depth payload byte length does not match depth_shape")
+        depth = np.frombuffer(depth_bytes, dtype="<f4").reshape(depth_shape).copy()
     return session_id, sequence, request_id, audio, rgb, depth
 
 
@@ -406,7 +301,8 @@ class StatefulInferenceHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
-            self.send_json(200, {"status": "ready", "policy": "AVNavInferencePolicy"})
+            self.send_json(200, {"status": "ready", "policy": "AVNavInferencePolicy",
+                                 "candidate": "corrective_epoch_015", "modalities": ["audio", "rgb"]})
         else:
             self.send_json(404, {"error": "not found"})
 
@@ -436,7 +332,7 @@ class StatefulInferenceHandler(BaseHTTPRequestHandler):
             self.send_json(400, {"error": str(exc)})
             return
 
-        # The policy keeps previous RGB-D frames and a five-step LSTM history.
+        # The policy keeps previous RGB frames and a five-step LSTM history.
         # Audio batching is archival only; inference uses the current step's audio.
         # One lock preserves that ordering and this service is scoped to one robot.
         with self.server.policy_lock:
@@ -463,12 +359,12 @@ class StatefulInferenceHandler(BaseHTTPRequestHandler):
             try:
                 observation = self.server.frontend(audio, rgb, depth, SAMPLE_RATE)
                 if not isinstance(observation, dict):
-                    raise TypeError("frontend must return a dict with rgb, depth, spectrogram")
-                for field in ("rgb", "depth", "spectrogram"):
+                    raise TypeError("frontend must return a dict with rgb and spectrogram")
+                for field in ("rgb", "spectrogram"):
                     if field not in observation:
                         raise ValueError("frontend result is missing {}".format(field))
                 action_id = int(self.server.policy.act(
-                    observation["spectrogram"], observation["rgb"], observation["depth"]))
+                    observation["spectrogram"], observation["rgb"]))
                 if action_id not in (0, 1, 2, 3):
                     raise ValueError("policy returned action outside 0..3")
                 archived_observation = self.server.observation_archive.save_observation(
@@ -518,10 +414,8 @@ class StatefulInferenceHandler(BaseHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--foundation-checkpoint", default=str(
-        CHECKPOINT_DIR / "foundation_epoch_125.pth"))
-    parser.add_argument("--policy-checkpoint", default=str(
-        CHECKPOINT_DIR / "saccql_epoch_80.pth"))
+    parser.add_argument("--foundation-checkpoint", default=str(DEFAULT_FOUNDATION))
+    parser.add_argument("--policy-checkpoint", default=str(DEFAULT_POLICY))
     parser.add_argument("--device", default=None, help="cpu, cuda, or defaults to available CUDA")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8080)

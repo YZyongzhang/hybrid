@@ -1,0 +1,14 @@
+{
+  "status": "pass",
+  "split_audit_sha256": "8b9e9830d6a8f2e45f15e31728af567834dfb9518857105f84659dcd7bc60d5f",
+  "content_manifest_sha256": {
+    "train": "2f7a4de5a8755fef2206546a0e038d702e9abfe3aeef42f3c1c8360b41ec682a",
+    "heard": "1a96a7f27eb29a8d9018a48a1983ceee1029507f1cdc7f54443edc31aff1084f",
+    "unheard": "bbc10ef9f3350811aa01ebb025709b8cdbf496ff06c222b843b10ad32fa031ea"
+  },
+  "warmstart_sha256": "b1f6a93996c04cd8dc06ab1f31c0c0d8ec08a4083c8db564c3bba89eb323c262",
+  "train_only_updates": true,
+  "test_data_loaded": false,
+  "raw_repacked": true,
+  "depth_used": false
+}

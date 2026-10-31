@@ -1,80 +1,68 @@
-# AVNav RGB-D + Audio Candidate
+# AVNav RGB + Audio real experiment
 
-This directory contains one paired foundation/offline-RL checkpoint candidate
-and the model code needed to run its policy inference.
+The default model is yesterday's validation-selected `corrective_epoch_015`
+from `result/2026-10-28-avnav-codex_attemp_rgb`. Use these checkpoints together:
 
-## Checkpoints
+- `checkpoints/foundation_rgb_best.pth` — source `checkpoints/foundation_rgb/best.pth`
+- `checkpoints/corrective_epoch_015_best_policy.pt` — source `checkpoints/corrective_epoch_015/best_policy.pt`
 
-- `checkpoints/foundation_epoch_125.pth`
-- `checkpoints/saccql_epoch_80.pth`
+`model_manifest.json` records SHA256 hashes, source files, the training config,
+selection rule, and the previous RGB-D model's backup directory. The frozen
+selection and data/split audits are copied into `provenance/`. Selection used
+validation only: 500 episodes per split, SPL 0.322087 (heard) and 0.164163
+(unheard), with zero errors. These are simulator validation results; real
+hardware performance has not been measured by this migration.
 
-Use the two files together. They were evaluated as one stack in
-`val_multiple_unheard` with 500 episodes, deterministic SAC actions, and a
-maximum of 200 steps per episode. The recorded results were average reward
-7.6199, SPL 0.2670, success rate 0.3660, and average 132.21 steps. The archived
-log is `../logs/eval_OfflineRL_v1_5_20260604_143241.log`.
+## Run
 
-This is a validation result, not a final test-split or real-hardware result.
-The historical record does not document a formal checkpoint sweep/selection
-rule, so treat this as a promising integration candidate rather than a
-benchmark-certified deployment model.
+From the project root, in the `ss` Python environment:
 
-## Inputs and action handling
-
-`AVNavRealPolicy.act_observation(obs)` consumes the AVNav observation fields:
-
-- `rgb`: HWC RGB image, uint8 `[H, W, 3]` or float `[H, W, 3]`
-- `depth`: `[H, W]` or HWC `[H, W, 1]`
-- `spectrogram`: same spectrogram representation as the simulator; the wrapper
-  selects `spectrogram[0]`, matching the archived evaluator
-
-The policy concatenates the previous and current RGB/depth frames along image
-width, encodes the result with audio, and keeps the latest five embeddings for
-the SAC-LSTM. Call `policy.reset()` at the beginning of each episode. The
-returned integer is the original policy action ID; the wrapper applies no
-recovery or action-override rule. Keep the simulator's original action-ID
-mapping when connecting it to the robot.
-
-The foundation model API has optional pose and ego-map arguments. The archived
-v1.5 evaluator does not pass either argument, and this wrapper follows that
-same path.
-
-## Example
-
-```python
-from real_experiment import AVNavRealPolicy
-
-policy = AVNavRealPolicy(
-    "real_experiment/checkpoints/foundation_epoch_125.pth",
-    "real_experiment/checkpoints/saccql_epoch_80.pth",
-    device="cuda",  # or "cpu"
-)
-policy.reset()
-action_id = policy.act_observation(observation)
+```bash
+python experiment/real_experiment/inference_server.py --device cuda --port 8080
 ```
 
-The model definitions are in `models/foundation.py` and
-`models/offline_sac_v1_5.py`. They are copied from the matching `finnal_exp`
-network implementations. Runtime dependencies are PyTorch and NumPy, plus the
-sensor frontend that produces the simulator-compatible spectrogram.
+This command loads the new paired checkpoints by default. `/health` identifies
+`corrective_epoch_015` and the audio/RGB modalities. The existing robot client
+can continue sending its legacy depth fields; they are optional and are never
+passed to the model. Requests without depth fields are also accepted. The
+request route, session sequencing, action IDs, and audio/RGB archives are
+unchanged.
+
+For Python inference:
+
+```python
+from experiment.real_experiment import AVNavRealPolicy
+
+policy = AVNavRealPolicy(device="cuda")  # or "cpu"
+policy.reset()
+action_id = policy.act_observation(observation)
+# Alternatively: action_id = policy.act(spectrogram, rgb)
+```
+
+## Inputs and protocol
+
+- `rgb`: HWC RGB `[128, 128, 3]`, uint8 0–255 or float 0–1.
+- `spectrogram`: binaural `[65, 26, 2]`. `act_observation` also accepts a
+  single-batch array or the simulator's `(spectrogram, metadata)` tuple.
+- Vision concatenates previous and current RGB along the channel axis into
+  `[128, 128, 6]`. The first previous frame is zero.
+- The SAC-LSTM receives the latest five 256-dimensional embeddings, left-padded
+  with zeros. Call `reset()` at each new episode; HTTP sequence 0 resets history.
+- Actions are the actor's deterministic argmax with original AVNav IDs. There
+  are no STOP thresholds, collision recovery rules, or action overrides.
+
+The HTTP frontend resizes RGB to 128×128 and divides by 255. Its existing audio
+frontend takes the latest one second of 48 kHz stereo int16 PCM, left-pads short
+clips, resamples to 16 kHz, and produces the SoundSpaces-compatible log1p STFT
+block-mean spectrogram. The foundation and offline model definitions are exact
+copies of the frozen RGB+audio experiment source and load both state dicts
+strictly. Runtime dependencies: PyTorch, NumPy, SciPy, and OpenCV.
 
 ## Inference records
 
-The HTTP inference server stores each successfully evaluated observation under
-`real_experiment/inference_records/`. RGB images are saved as PNG files in
-`images/`, and the received stereo audio is saved as 48 kHz, 16-bit PCM WAV
-files in `audio/`. Both filenames end with `_a<action_id>` (for example,
-`_a3.png` and `_a3.wav`) using the policy's returned action ID unchanged.
-`requests.jsonl` and `commands.jsonl` record the same action ID and map each
-input to its session, sequence, and request IDs.
-
-Every 30 steps, the server also concatenates those 30 raw PCM clips into a WAV
-under `audio_batches/`. `audio_batches.jsonl` records the session, original
-step sequence numbers, per-step WAV paths, action IDs, and sample counts for
-each batch.
-The individual WAV files remain available under `audio/`. This aggregation is
-for debugging only: inference still uses the current step's audio and the
-policy's inputs and outputs are unchanged.
-
-Use `--record-dir PATH` with `inference_server.py` to choose a different
-archive location. The default is `real_experiment/inference_records/`.
+The server saves RGB PNGs, 48 kHz stereo PCM WAVs, and unchanged action IDs to
+`inference_records/`, or the path supplied with `--record-dir`. `requests.jsonl`
+and `commands.jsonl` reference session, sequence, request, and action IDs.
+Every 30 steps, raw audio clips are concatenated under `audio_batches/`, with
+source steps recorded in `audio_batches.jsonl`. Batching is archival only;
+inference uses each step's current audio.

@@ -1,0 +1,41 @@
+{
+  "seed": 20261028,
+  "max_steps": 200,
+  "modality": "RGB previous/current frames + binaural audio; no depth",
+  "evaluation_protocol_version": "episode_isolated_v2",
+  "action_handling": "raw deterministic actor argmax directly to Env.step; no adapter or overrides",
+  "models": {
+    "experiment/avnav/hybrid/foundation_model.py": "075b34dbeab2057bf08748d3ef11ac6ea76c1bbc54e8abbff8181d32c282a8ba",
+    "experiment/avnav/hybrid/ViT.py": "fac19e502226b496c328c7c9e40dc3a0cd8a79c508aca3aebe8611f20111d7a7",
+    "experiment/avnav/hybrid/preprocessing.py": "9a9c1ec17d9f8a10199098e5b0a0f3284a70c15c6140f58700ac3be3fd071a57",
+    "experiment/avnav/hybrid/Encoder.py": "e11a08dd7d68f8322f2a3257b849ec812b263c350a56ae0635415eaeb65fd47f",
+    "experiment/avnav/hybrid/audio.py": "247314b1ec6c213b5b54e73ab3a89e66624df484d5dc07fa9f13acbca03e4152",
+    "experiment/avnav/offline_rl_v1_5_lstm/OfflineNet.py": "20bf615db66af95318048be8cce757e9041524f24ea1eb0c136e198faeeee48b",
+    "experiment/avnav/rgb-only/hybrid/foundation_model.py": "bfb7c0e1aef0308a3b40e60a6f5a08b1307a2bb3239360a206e17749c9471f76",
+    "experiment/avnav/rgb-only/hybrid/ViT.py": "fac19e502226b496c328c7c9e40dc3a0cd8a79c508aca3aebe8611f20111d7a7",
+    "experiment/avnav/rgb-only/hybrid/preprocessing.py": "9a9c1ec17d9f8a10199098e5b0a0f3284a70c15c6140f58700ac3be3fd071a57",
+    "experiment/avnav/rgb-only/hybrid/Encoder.py": "e11a08dd7d68f8322f2a3257b849ec812b263c350a56ae0635415eaeb65fd47f",
+    "experiment/avnav/rgb-only/hybrid/audio.py": "247314b1ec6c213b5b54e73ab3a89e66624df484d5dc07fa9f13acbca03e4152",
+    "experiment/avnav/rgb-only/offline_rl_v1_5_lstm/OfflineNet.py": "20bf615db66af95318048be8cce757e9041524f24ea1eb0c136e198faeeee48b"
+  },
+  "training_sources": [
+    "/data/getuanhui/avnav-hybrid-mutiple/pickle/hybird(heard_train_multiple)"
+  ],
+  "validation_source": "/data2/getuanhui/avnav-codex-val",
+  "selection": "Stage NLL shortlist and predeclared epoch checkpoints; screen all on fixed 100 validation episodes per split by max min(heard_SPL/0.25,unheard_SPL/0.15), tie mean SPL then stable lexicographic candidate order; fully evaluate the top-ranked candidate on all 500 validation episodes per split and freeze only after predeclared point-SPL gates pass; otherwise continue validation-only iteration. Test is final and never guides later tuning.",
+  "freeze_readiness": {
+    "validation_episodes_per_split": 500,
+    "errors": 0,
+    "point_SPL_targets": [
+      0.25,
+      0.15
+    ]
+  },
+  "test_policy": "freeze model, checkpoint, config and source hashes before complete 1000+1000 test; test results cannot drive subsequent changes",
+  "reference": "original validation-selected offline_d_corrective, not later test-guided versions",
+  "input_token_limit": 10000000,
+  "output_token_limit": 1000000,
+  "conflicting_earlier_artifacts": "archived, excluded from candidate selection; wrong pure-RGB modality",
+  "runtime_concurrency": "screening and collection: maximum 4 simultaneous simulators; after all training/collection ends full validation: 8 simultaneous simulators (4 per split); final test: 8 simultaneous simulators (4 per split). Four fixed identity partitions and same policy protocol throughout.",
+  "final_selection_amendment_reason": "Declared before any full validation or test access: use one ranked finalist to reserve input-token budget for complete validation and complete final tests."
+}

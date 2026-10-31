@@ -162,7 +162,7 @@ class SAC_LSTM_CQL_v1_5(nn.Module):
         self.log_alpha_optimizer.zero_grad()
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
-
+        
         # 更新 critic 网络，重新进行LSTM的encode
         seq_states = self._encode_sequence(states)
         seq_next_states = self._encode_sequence(next_states)
@@ -178,7 +178,7 @@ class SAC_LSTM_CQL_v1_5(nn.Module):
         critic_2_q_values = self.critic_2(states_flat)
         critic_2_q_taken = critic_2_q_values.gather(1, actions).squeeze(1)
         critic_2_loss = torch.mean(F.mse_loss(critic_2_q_taken, td_target))
-
+        
         # 从公式上来看，cql这里的实现有一些问题。目前先不动这个。控制变量。
         # cql1_scaled_loss = torch.logsumexp(critic_1_q_values, dim=1).mean() - critic_1_q_values.mean()
         # cql2_scaled_loss = torch.logsumexp(critic_2_q_values, dim=1).mean() - critic_2_q_values.mean()

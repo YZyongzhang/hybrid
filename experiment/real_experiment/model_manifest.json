@@ -1,42 +1,116 @@
 {
-  "name": "AVNav RGB-D + Audio Offline SAC-LSTM candidate",
-  "created_from": "/home/getuanhui/project/finnal_exp",
+  "name": "AVNav RGB + Audio Offline SAC-LSTM",
+  "candidate": "corrective_epoch_015",
+  "created_from": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb",
+  "replaced_at": "2026-10-30T11:26:32.792935+08:00",
+  "previous_model_backup": "backups/20261030_112632_rgbd",
   "paired_checkpoints": {
     "foundation": {
-      "packaged_file": "checkpoints/foundation_epoch_125.pth",
-      "source_file": "PR/heard/ckpt/20260603_114140/model_epoch_125.pth",
-      "sha256": "ce79f80dce4fae2c7778991f057b0ba3153e5a021e34b02566365c3c3a4b68e0"
+      "packaged_file": "checkpoints/foundation_rgb_best.pth",
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/checkpoints/foundation_rgb/best.pth",
+      "sha256": "36f18f17760de61884a3b106283c32ac8086c65d6778e3c5769393c889e567a0"
     },
     "offline_policy": {
-      "packaged_file": "checkpoints/saccql_epoch_80.pth",
-      "source_file": "media/TRAIN/20260603_154559/sac_2level_model_80.pth",
-      "sha256": "dccb05981d942fb8b874b8153f695e1109e6f5d83f655efd9d115455d11222c5"
+      "packaged_file": "checkpoints/corrective_epoch_015_best_policy.pt",
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/checkpoints/corrective_epoch_015/best_policy.pt",
+      "sha256": "7d1c7d6c2d0c8462911dc5b4bd0ebf2d40e2093e31d6531b7415dfabbfd14003"
     }
   },
+  "training_config": {
+    "packaged_file": "checkpoints/training_config.json",
+    "source_file": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/checkpoints/corrective_epoch_015/training_config.json",
+    "sha256": "2b289b63a7381a1e8719a004e085d23f9e801b1911b94bc2777389d67847082f"
+  },
   "model_code": {
-    "foundation_source": "network/hybrid_with_separate_audio/hybrid_with_separate_audio.py",
-    "offline_policy_source": "network/offline/v1_5/OfflineNet.py"
+    "foundation.py": {
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/experiment/avnav/rgb-only/hybrid/foundation_model.py",
+      "sha256": "bfb7c0e1aef0308a3b40e60a6f5a08b1307a2bb3239360a206e17749c9471f76"
+    },
+    "ViT.py": {
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/experiment/avnav/rgb-only/hybrid/ViT.py",
+      "sha256": "fac19e502226b496c328c7c9e40dc3a0cd8a79c508aca3aebe8611f20111d7a7"
+    },
+    "Encoder.py": {
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/experiment/avnav/rgb-only/hybrid/Encoder.py",
+      "sha256": "e11a08dd7d68f8322f2a3257b849ec812b263c350a56ae0635415eaeb65fd47f"
+    },
+    "audio.py": {
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/experiment/avnav/rgb-only/hybrid/audio.py",
+      "sha256": "247314b1ec6c213b5b54e73ab3a89e66624df484d5dc07fa9f13acbca03e4152"
+    },
+    "preprocessing.py": {
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/experiment/avnav/rgb-only/hybrid/preprocessing.py",
+      "sha256": "9a9c1ec17d9f8a10199098e5b0a0f3284a70c15c6140f58700ac3be3fd071a57"
+    },
+    "offline_sac_v1_5.py": {
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/experiment/avnav/rgb-only/offline_rl_v1_5_lstm/OfflineNet.py",
+      "sha256": "20bf615db66af95318048be8cce757e9041524f24ea1eb0c136e198faeeee48b"
+    }
+  },
+  "provenance_records": {
+    "frozen_selection.json": {
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/frozen_selection.json",
+      "packaged_file": "provenance/frozen_selection.json",
+      "sha256": "38c71a6fb1d7714ac12b4dc74aeab53bd2e66d05ac7976e1c938a06c7e24dc84"
+    },
+    "protocol.json": {
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/protocol.json",
+      "packaged_file": "provenance/protocol.json",
+      "sha256": "1ce5f0d62067d8e0486423b308cdf1c8276254edf468d7d4440007dd394928ad"
+    },
+    "split_audit.json": {
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/audit/split_audit.json",
+      "packaged_file": "provenance/split_audit.json",
+      "sha256": "8b9e9830d6a8f2e45f15e31728af567834dfb9518857105f84659dcd7bc60d5f"
+    },
+    "data_source_audit.json": {
+      "source_file": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/audit/data_source_audit.json",
+      "packaged_file": "provenance/data_source_audit.json",
+      "sha256": "a1856eb6da49097164addc091ceb50d5ec91d5090179032ca7d94d21670e426b"
+    }
   },
   "inference": {
-    "modalities": ["audio spectrogram", "RGB", "depth"],
-    "visual_context": "previous and current frames concatenated along width",
-    "audio_archive_batch_steps": 30,
-    "audio_archive_batching": "non-overlapping raw PCM concatenation with source step references; model input unchanged",
+    "modalities": [
+      "audio spectrogram",
+      "RGB"
+    ],
+    "depth_used": false,
+    "visual_context": "previous and current RGB frames concatenated along channels [128,128,6]; RGB divided by 255",
+    "initial_history": "zero previous RGB and left zero-padded embedding sequence",
     "policy_history_length": 5,
     "deterministic_actions": true,
     "action_count": 4,
-    "action_postprocessing": false
+    "action_postprocessing": false,
+    "action_handling": "raw deterministic actor argmax directly to Env.step; no adapter or overrides",
+    "audio_frontend": "48 kHz stereo PCM resampled to 16 kHz; one second, log1p STFT block-mean [65,26,2]",
+    "audio_archive_batch_steps": 30,
+    "legacy_depth_payload": "optional, validated if present, never used by model"
   },
+  "selection_rule": "Stage NLL shortlist and predeclared epoch checkpoints; screen all on fixed 100 validation episodes per split by max min(heard_SPL/0.25,unheard_SPL/0.15), tie mean SPL then stable lexicographic candidate order; fully evaluate the top-ranked candidate on all 500 validation episodes per split and freeze only after predeclared point-SPL gates pass; otherwise continue validation-only iteration. Test is final and never guides later tuning.",
+  "test_used_for_selection": false,
   "validation": {
-    "log": "logs/eval_OfflineRL_v1_5_20260604_143241.log",
-    "split": "val_multiple_unheard",
-    "episodes": 500,
-    "average_reward": 7.6199,
-    "average_spl": 0.267,
-    "success_rate": 0.366,
-    "average_steps": 132.21,
-    "max_steps": 200,
-    "final_test_or_real_hardware_validation": false,
-    "formal_checkpoint_selection_rule_documented": false
-  }
+    "results": [
+      {
+        "path": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/evaluation/corrective_epoch_015_full/val_multiple/val_multiple.json",
+        "sha256": "1b30b51c2c199baa6c4613724ca9c56c375354ef0d11794e3c2efe39417b5ba7",
+        "SPL": 0.3220874639638335,
+        "bootstrap_95_ci": [
+          0.2847402205789182,
+          0.358706753424768
+        ]
+      },
+      {
+        "path": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/evaluation/corrective_epoch_015_full/val_multiple_unheard/val_multiple_unheard.json",
+        "sha256": "00ae8ed84af30158940b0ee7edcd600c888cd44655b9654561856b63b8d63adf",
+        "SPL": 0.16416345025506365,
+        "bootstrap_95_ci": [
+          0.1343195847157507,
+          0.19480515566122725
+        ]
+      }
+    ],
+    "episodes_per_split": 500,
+    "errors_per_split": 0
+  },
+  "real_hardware_evaluated": false
 }

@@ -1,574 +1,223 @@
-from typing import Dict, Optional, Tuple
-
+import sys
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
-
-NUM_ANGLE_BINS = 8
-
-
-def _group_count(num_channels: int) -> int:
-    for groups in (16, 8, 4, 2, 1):
-        if num_channels % groups == 0:
-            return groups
-    return 1
-
-
-def _make_transformer_encoder(
-    d_model: int,
-    nhead: int,
-    num_layers: int,
-    dropout: float,
-    dim_feedforward: int,
-) -> nn.TransformerEncoder:
-    layer = nn.TransformerEncoderLayer(
-        d_model=d_model,
-        nhead=nhead,
-        dim_feedforward=dim_feedforward,
-        dropout=dropout,
-        activation="gelu",
-        batch_first=True,
-        norm_first=True,
-    )
-    return nn.TransformerEncoder(layer, num_layers=num_layers)
-
-
-class SinusoidalPositionalEncoding(nn.Module):
-    def __init__(self, d_model: int, max_len: int = 512) -> None:
+from .ViT import ViTEncoder
+from .audio import AudioCRNN
+from .ViT import VisualEncoder , PositionalEcoder
+from .Encoder import Encoder
+from .preprocessing import spatial_tokens
+class Attention(nn.Module):
+    def __init__(self , input_dim , visual_dim , audio_dim ,hidden_dim, output_dim):
         super().__init__()
-        position = torch.arange(max_len).unsqueeze(1)
-
-        div_term = torch.exp(
-            torch.arange(0, d_model, 2, dtype=torch.float32)
-            * (-torch.log(torch.tensor(10000.0)) / d_model)
-        )
-
-        pe = torch.zeros(1, max_len, d_model)
-        pe[:, :, 0::2] = torch.sin(position * div_term)
-        pe[:, :, 1::2] = torch.cos(position * div_term)
-        self.register_buffer("pe", pe, persistent=False)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.pe[:, : x.size(1)].to(dtype=x.dtype, device=x.device)
+        self.input_dim = input_dim
+        self.visual_dim = visual_dim
+        self.audio_dim = audio_dim
+        self.hidden_dim = hidden_dim
+        self.output_dim = output_dim
 
 
-class ConvTokenizer(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        embed_dim: int = 128,
-        hidden_channels: int = 32,
-        dropout: float = 0.1,
-        pool_size: Optional[Tuple[int, int]] = None,
-    ) -> None:
+        self.fc1 = nn.Linear(input_dim , hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
+
+
+        self.attention_weight = nn.Parameter(torch.randn(self.output_dim) * 0.01)
+        
+        
+    def forward(self, encode):
+        x1 = torch.relu(self.fc1(encode))
+        x2 = torch.relu(self.fc2(x1))
+        self.attention_weight.unsqueeze(1)
+        # import pdb;pdb.set_trace()
+        # y = torch.matmul(x2.unsqueeze(-1) , self.attention_weight)
+        y = x2 * self.attention_weight
+        return x2
+    
+class Vote(nn.Module):
+    def __init__(self,input_dim):
         super().__init__()
-        mid_channels = hidden_channels * 2
-        layers = [
-            nn.Conv2d(in_channels, hidden_channels, kernel_size=5, stride=2, padding=2, bias=False),
-            nn.GroupNorm(_group_count(hidden_channels), hidden_channels),
-            nn.GELU(),
-            nn.Conv2d(hidden_channels, mid_channels, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.GroupNorm(_group_count(mid_channels), mid_channels),
-            nn.GELU(),
-            nn.Conv2d(mid_channels, embed_dim, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.GroupNorm(_group_count(embed_dim), embed_dim),
-            nn.GELU(),
-        ]
-        if pool_size is not None:
-            layers.append(nn.AdaptiveAvgPool2d(pool_size))
-        layers.append(nn.Dropout2d(dropout))
-        self.encoder = nn.Sequential(*layers)
+        self.input_dim = input_dim
+        # self.hidden_dim = hidden_dim
+        # self.output_dim = output_dim
+        
+        self.voter = nn.Parameter(torch.randn(self.input_dim , 32) * 0.01)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        feat = self.encoder(x.float())
-        return feat.flatten(2).transpose(1, 2)
+    def forward(self,embeding):
+        output = torch.matmul(embeding , self.voter)
+        return output
+    
+class Decision(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim=1):
+        super(Decision, self).__init__()
+        self.input_dim = input_dim
+        self.fc1 = nn.Linear(input_dim , hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
 
-
-class SpatialAudioDecomposer(nn.Module):
-    def __init__(self, eps: float = 1e-5) -> None:
+    def forward(self, input_matrix):
+        x = input_matrix.squeeze(1)
+        # import pdb;pdb.set_trace()
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+    
+class Finnal_model(nn.Module):
+    def __init__(self, input_dim , hidden_dim , output_dim):
         super().__init__()
-        self.eps = eps
+        self.input_dim = 17*128
+        self.hidden_dim = hidden_dim
+        self.output_dim = output_dim
+        
+        self.dropout = nn.Dropout(0.2)
 
-    def _normalize_map(self, x: torch.Tensor) -> torch.Tensor:
-        mean = x.mean(dim=(-2, -1), keepdim=True)
-        std = x.std(dim=(-2, -1), keepdim=True, unbiased=False)
-        return (x - mean) / (std + self.eps)
-
-    def forward(self, audio: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        if audio.dim() == 3:
-            audio = audio.unsqueeze(0)
-        if audio.dim() != 4 or audio.size(-1) != 2:
-            raise ValueError(
-                f"audio must have shape [B, F, T, 2] or [F, T, 2], got {tuple(audio.shape)}"
-            )
-
-        left = audio[..., 0].float()
-        right = audio[..., 1].float()
-
-        mid = 0.5 * (left + right)
-        side = 0.5 * (left - right)
-
-        left_norm = self._normalize_map(left)
-        right_norm = self._normalize_map(right)
-        side_norm = self._normalize_map(side)
-        mid_norm = self._normalize_map(mid)
-
-        ild = torch.log(left.abs() + self.eps) - torch.log(right.abs() + self.eps)
-        ild = self._normalize_map(ild)
-
-        side_ratio = side / (mid.abs() + self.eps)
-        side_ratio = self._normalize_map(side_ratio)
-
-        mono_energy = torch.log(0.5 * (left.abs() + right.abs()) + self.eps)
-        mono_energy = self._normalize_map(mono_energy)
-
-        spatial_map = torch.stack(
-            [left_norm, right_norm, side_norm, ild, side_ratio], dim=1
+        self.fc1 = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(self.input_dim , self.hidden_dim),
+            nn.ReLU(),
+            nn.LayerNorm(hidden_dim),
         )
-        timbre_map = torch.stack([mid_norm, mono_energy], dim=1)
-        return spatial_map, timbre_map
-
-
-class TimbreInvariantAudioEncoder(nn.Module):
-    """
-    Spatial branch keeps binaural geometry.
-    Timbre branch models source identity / coloration and is only used as a nuisance signal
-    that gets projected out from the spatial branch.
-    """
-
-    def __init__(
-        self,
-        embed_dim: int = 128,
-        num_heads: int = 4,
-        dropout: float = 0.1,
-        num_layers: int = 2,
-    ) -> None:
-        super().__init__()
-        self.decomposer = SpatialAudioDecomposer()
-        self.position = SinusoidalPositionalEncoding(embed_dim, max_len=256)
-
-        self.spatial_tokenizer = ConvTokenizer(
-            in_channels=5,
-            embed_dim=embed_dim,
-            hidden_channels=32,
-            dropout=dropout,
-            pool_size=(6, 4),
-        )
-        self.timbre_tokenizer = ConvTokenizer(
-            in_channels=2,
-            embed_dim=embed_dim,
-            hidden_channels=24,
-            dropout=dropout,
-            pool_size=(4, 3),
+        
+        # self.polar_head = nn.Sequential(
+        #     nn.Linear(self.hidden_dim, 128),
+        #     nn.ReLU(),
+        #     nn.LayerNorm(128),
+        #     nn.Linear(128, 2)
+        # )
+        self.polar_head_probe = nn.Sequential(
+            nn.Linear(self.hidden_dim , 2 )
         )
 
-        self.spatial_encoder = _make_transformer_encoder(
-            d_model=embed_dim,
-            nhead=num_heads,
-            num_layers=num_layers,
-            dropout=dropout,
-            dim_feedforward=embed_dim * 4,
+        # self.angle_head = nn.Sequential(
+        #     nn.Linear(self.hidden_dim, 128),
+        #     nn.ReLU(),
+        #     nn.LayerNorm(128),
+        #     nn.Linear(128, 8)
+        # )
+        self.angle_head_probe = nn.Sequential(
+            nn.Linear(self.hidden_dim , 8)
         )
-        self.timbre_encoder = _make_transformer_encoder(
-            d_model=embed_dim,
-            nhead=num_heads,
-            num_layers=max(1, num_layers - 1),
-            dropout=dropout,
-            dim_feedforward=embed_dim * 4,
-        )
-        self.timbre_to_spatial = nn.MultiheadAttention(
-            embed_dim=embed_dim,
-            num_heads=num_heads,
-            dropout=dropout,
-            batch_first=True,
-        )
-        self.timbre_projection = nn.Sequential(
-            nn.Linear(embed_dim, embed_dim),
-            nn.GELU(),
-            nn.LayerNorm(embed_dim),
-            nn.Linear(embed_dim, embed_dim),
-        )
-        self.output_norm = nn.LayerNorm(embed_dim)
-        self.refine_encoder = _make_transformer_encoder(
-            d_model=embed_dim,
-            nhead=num_heads,
-            num_layers=1,
-            dropout=dropout,
-            dim_feedforward=embed_dim * 4,
-        )
-        self.residual_scale = nn.Parameter(torch.tensor(0.5))
-
-    def forward(self, audio: torch.Tensor) -> Dict[str, torch.Tensor]:
-        spatial_map, timbre_map = self.decomposer(audio)
-
-        spatial_tokens = self.spatial_tokenizer(spatial_map)
-        timbre_tokens = self.timbre_tokenizer(timbre_map)
-
-        spatial_tokens = self.spatial_encoder(spatial_tokens + self.position(spatial_tokens))
-        timbre_tokens = self.timbre_encoder(timbre_tokens + self.position(timbre_tokens))
-
-        timbre_residual, _ = self.timbre_to_spatial(
-            spatial_tokens, timbre_tokens, timbre_tokens
-        )
-        timbre_feature = timbre_tokens.mean(dim=1)
-        timbre_basis = F.normalize(self.timbre_projection(timbre_feature), dim=-1).unsqueeze(1)
-        shared_projection = (spatial_tokens * timbre_basis).sum(dim=-1, keepdim=True) * timbre_basis
-
-        spatial_tokens = self.output_norm(
-            spatial_tokens - self.residual_scale * timbre_residual - shared_projection
-        )
-        spatial_tokens = self.refine_encoder(spatial_tokens + self.position(spatial_tokens))
-        spatial_feature = spatial_tokens.mean(dim=1)
-
-        orthogonality_loss = (
-            F.normalize(spatial_feature, dim=-1) * F.normalize(timbre_feature, dim=-1)
-        ).sum(dim=-1).pow(2).mean()
-
-        return {
-            "spatial_tokens": spatial_tokens,
-            "timbre_tokens": timbre_tokens,
-            "spatial_feature": spatial_feature,
-            "timbre_feature": timbre_feature,
-            "orthogonality_loss": orthogonality_loss,
-        }
-
-
-class VisualTokenEncoder(nn.Module):
-    def __init__(
-        self,
-        in_channels: Optional[int] = None,
-        embed_dim: int = 128,
-        num_heads: int = 4,
-        dropout: float = 0.1,
-        num_layers: int = 2,
-    ) -> None:
-        super().__init__()
-        self.in_channels = in_channels
-        hidden_channels = 32
-        mid_channels = hidden_channels * 2
-        first_conv: nn.Module
-        if in_channels is None:
-            first_conv = nn.LazyConv2d(
-                hidden_channels,
-                kernel_size=5,
-                stride=2,
-                padding=2,
-                bias=False,
-            )
-        else:
-            first_conv = nn.Conv2d(
-                in_channels,
-                hidden_channels,
-                kernel_size=5,
-                stride=2,
-                padding=2,
-                bias=False,
-            )
-        self.tokenizer = nn.Sequential(
-            first_conv,
-            nn.GroupNorm(_group_count(hidden_channels), hidden_channels),
-            nn.GELU(),
-            nn.Conv2d(mid_channels // 2, mid_channels, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.GroupNorm(_group_count(mid_channels), mid_channels),
-            nn.GELU(),
-            nn.Conv2d(mid_channels, embed_dim, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.GroupNorm(_group_count(embed_dim), embed_dim),
-            nn.GELU(),
-            nn.AdaptiveAvgPool2d((8, 8)),
-            nn.Dropout2d(dropout),
-        )
-        self.position = SinusoidalPositionalEncoding(embed_dim, max_len=256)
-        self.encoder = _make_transformer_encoder(
-            d_model=embed_dim,
-            nhead=num_heads,
-            num_layers=num_layers,
-            dropout=dropout,
-            dim_feedforward=embed_dim * 4,
+        
+        self.action_head = nn.Sequential(
+            nn.Linear(self.hidden_dim, 128),
+            nn.ReLU(),
+            nn.LayerNorm(128),
+            nn.Linear(128, output_dim)
         )
 
-    def forward(self, rgbd: torch.Tensor) -> torch.Tensor:
-        if self.in_channels is not None and rgbd.size(1) != self.in_channels:
-            raise ValueError(
-                f"expected visual channels={self.in_channels}, got {rgbd.size(1)}. "
-                "If depth/rgb channels differ, pass the correct visual_in_channels when constructing Network."
-            )
-        visual_feat = self.tokenizer(rgbd.float())
-        visual_tokens = visual_feat.flatten(2).transpose(1, 2)
-        return self.encoder(visual_tokens + self.position(visual_tokens))
-
-
-class CrossModalFusion(nn.Module):
-    def __init__(
-        self,
-        embed_dim: int = 128,
-        num_heads: int = 4,
-        dropout: float = 0.1,
-        num_layers: int = 2,
-    ) -> None:
-        super().__init__()
-        self.audio_queries_visual = nn.MultiheadAttention(
-            embed_dim=embed_dim,
-            num_heads=num_heads,
-            dropout=dropout,
-            batch_first=True,
-        )
-        self.visual_queries_audio = nn.MultiheadAttention(
-            embed_dim=embed_dim,
-            num_heads=num_heads,
-            dropout=dropout,
-            batch_first=True,
-        )
-        self.audio_norm = nn.LayerNorm(embed_dim)
-        self.visual_norm = nn.LayerNorm(embed_dim)
-        self.position = SinusoidalPositionalEncoding(embed_dim, max_len=256)
-        self.shared_encoder = _make_transformer_encoder(
-            d_model=embed_dim,
-            nhead=num_heads,
-            num_layers=num_layers,
-            dropout=dropout,
-            dim_feedforward=embed_dim * 4,
-        )
-
-    def forward(self, audio_tokens: torch.Tensor, visual_tokens: torch.Tensor) -> torch.Tensor:
-        audio_context, _ = self.audio_queries_visual(audio_tokens, visual_tokens, visual_tokens)
-        audio_tokens = self.audio_norm(audio_tokens + audio_context)
-
-        visual_context, _ = self.visual_queries_audio(visual_tokens, audio_tokens, audio_tokens)
-        visual_tokens = self.visual_norm(visual_tokens + visual_context)
-
-        fused_tokens = torch.cat([audio_tokens, visual_tokens], dim=1)
-        return self.shared_encoder(fused_tokens + self.position(fused_tokens))
-
+    def forward(self,encoder):
+        x1 = self.fc1(encoder)
+        x2 = self.dropout(x1)
+        polar = self.polar_head(x2)
+        action_logits = self.action_head(x2)
+        return polar, action_logits
 
 class Network(nn.Module):
-    """
-    Hybrid model for better unheard generalization.
-
-    Key idea:
-    1. Decompose binaural audio into a spatial branch and a timbre branch.
-    2. Use the timbre branch only to estimate nuisance information and remove it.
-    3. Fuse purified spatial tokens with RGBD so action policy depends more on direction than on source identity.
-    """
-
-    def __init__(
-        self,
-        action_dim: int = 4,
-        pose_dim: int = 4,
-        angle_bins: int = NUM_ANGLE_BINS,
-        modality_dim: int = 128,
-        hidden_dim: int = 256,
-        visual_in_channels: Optional[int] = None,
-        ego_map_channels: int = 2,
-        dropout: float = 0.1,
-    ) -> None:
+    def __init__(self):
         super().__init__()
-        self.action_dim = action_dim
-        self.angle_bins = angle_bins
-        self.visual_in_channels = visual_in_channels
-        self.ego_map_channels = ego_map_channels
-        self.device = torch.device('cuda')
+        # self.vitpartnet = ViTEncoder()
+        self.visual_encoder = VisualEncoder(input_dim=6)
+        self.add_position = PositionalEcoder()
+        self.visual_transformer_encoder =  Encoder(d_model=128 , ffn_hidden=64,n_head=4,n_layers=3,drop_prob=0.2)
+        self.audio_encoder = AudioCRNN()
 
-        self.audio_encoder = TimbreInvariantAudioEncoder(
-            embed_dim=modality_dim,
-            num_heads=4,
-            dropout=dropout,
-            num_layers=2,
-        )
-        self.visual_encoder = VisualTokenEncoder(
-            in_channels=visual_in_channels,
-            embed_dim=modality_dim,
-            num_heads=4,
-            dropout=dropout,
-            num_layers=2,
-        )
-        self.av_fusion = CrossModalFusion(
-            embed_dim=modality_dim,
-            num_heads=4,
-            dropout=dropout,
-            num_layers=2,
-        )
+        self.vaencoder =  Encoder(d_model=128 , ffn_hidden=64,n_head=4,n_layers=3,drop_prob=0.2)
+        self.final = Finnal_model(input_dim = 512 , hidden_dim= 256 , output_dim=4)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else "cpu")
 
-        self.pose_encoder = nn.Sequential(
-            nn.Linear(pose_dim, modality_dim),
-            nn.GELU(),
-            nn.LayerNorm(modality_dim),
-        )
-        self.ego_map_encoder = nn.Sequential(
-            nn.Conv2d(ego_map_channels, 32, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.GroupNorm(_group_count(32), 32),
-            nn.GELU(),
-            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.GroupNorm(_group_count(64), 64),
-            nn.GELU(),
-            nn.Conv2d(64, modality_dim, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.GroupNorm(_group_count(modality_dim), modality_dim),
-            nn.GELU(),
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(),
-            nn.LayerNorm(modality_dim),
-        )
-
-        self.state_fusion = nn.Sequential(
-            nn.Linear(modality_dim * 4, hidden_dim),
-            nn.GELU(),
-            nn.LayerNorm(hidden_dim),
-            nn.Dropout(dropout),
-        )
-        self.polar_head = nn.Linear(modality_dim, 2)
-        self.angle_head = nn.Sequential(
-            nn.Linear(modality_dim, modality_dim),
-            nn.GELU(),
-            nn.LayerNorm(modality_dim),
-            nn.Linear(modality_dim, angle_bins),
-        )
-        self.action_head = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.GELU(),
-            nn.LayerNorm(hidden_dim),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, action_dim),
-        )
-
-    def _prepare_audio(self, audio: torch.Tensor) -> torch.Tensor:
-        if audio.dim() == 3:
+    def _prepare_inputs(self, audio, rgb, depth=None):
+        # Compatibility argument depth is never read; only two RGB frames enter vision.
+        if audio.ndim == 3:
             audio = audio.unsqueeze(0)
-        return audio.float()
-
-    def _prepare_rgbd(self, rgb: torch.Tensor, depth: torch.Tensor) -> torch.Tensor:
-        if rgb.dim() == 3:
+        if rgb.ndim == 3:
             rgb = rgb.unsqueeze(0)
-        if depth.dim() == 3:
-            depth = depth.unsqueeze(0)
+        if rgb.shape[-1] != 6:
+            raise ValueError(f"Expected two RGB frames [B,H,W,6], got {tuple(rgb.shape)}")
+        return audio, rgb.permute(0, 3, 1, 2)
 
-        rgb = rgb.float()
-        depth = depth.float()
-        if rgb.max() > 1.5:
-            rgb = rgb / 255.0
+    def _action_embedding(self, audio, rgb, depth=None):
+        audio, rgbd = self._prepare_inputs(audio, rgb, depth)
+        
+        audio_encoder = self.audio_encoder.encoder_forward(audio)
+        visual_cnn = self.visual_encoder(rgbd)
+        v_batch , v_dim , v_h , v_w = visual_cnn.shape
+        visual_cnn = spatial_tokens(visual_cnn)
+        v_position = self.add_position(visual_cnn)
+        visual_cnn = visual_cnn + v_position
+        visual_encoder = self.visual_transformer_encoder(visual_cnn)
+        concat_encoder = torch.cat((audio_encoder , visual_encoder ) , dim=1)
+        p_share_encoder = self.add_position(concat_encoder)
+        
+        share_visual_audio_encoder = self.vaencoder(concat_encoder + p_share_encoder)
+        embedding = self.final.fc1(share_visual_audio_encoder)
+        return embedding
 
-        rgb = rgb.permute(0, 3, 1, 2)
-        depth = depth.permute(0, 3, 1, 2)
-        return torch.cat([rgb, depth], dim=1)
+    def forward(self,audio , rgb , depth=None):
+        embedding = self._action_embedding(audio, rgb, depth)
+        dropped = self.final.dropout(embedding)
+        polar_predict = self.final.polar_head_probe(dropped)
+        angle_logits = self.final.angle_head_probe(dropped)
+        action_logits = self.final.action_head(dropped)
+        return polar_predict, angle_logits , action_logits
 
-    def _encode_pose(self, pose: Optional[torch.Tensor], batch_size: int, device: torch.device) -> torch.Tensor:
-        if pose is None:
-            return torch.zeros(batch_size, self.pose_encoder[0].out_features, device=device)
-        if pose.dim() == 1:
-            pose = pose.unsqueeze(0)
-        return self.pose_encoder(pose.float().to(device))
-
-    def _encode_ego_map(
-        self,
-        ego_map: Optional[torch.Tensor],
-        batch_size: int,
-        device: torch.device,
-    ) -> torch.Tensor:
-        if ego_map is None:
-            return torch.zeros(batch_size, self.angle_head[0].in_features, device=device)
-
-        if ego_map.dim() == 3:
-            ego_map = ego_map.unsqueeze(0)
-        ego_map = ego_map.float().to(device)
-        if ego_map.size(-1) == self.ego_map_channels:
-            ego_map = ego_map.permute(0, 3, 1, 2)
-        elif ego_map.size(1) != self.ego_map_channels:
-            raise ValueError(
-                f"ego_map must have {self.ego_map_channels} channels in first or last dim, got {tuple(ego_map.shape)}"
-            )
-        return self.ego_map_encoder(ego_map)
-
-    def encode_state(
-        self,
-        audio: torch.Tensor,
-        rgb: torch.Tensor,
-        depth: torch.Tensor,
-        pose: Optional[torch.Tensor] = None,
-        ego_map: Optional[torch.Tensor] = None,
-    ) -> Dict[str, torch.Tensor]:
-        audio = self._prepare_audio(audio)
-        rgbd = self._prepare_rgbd(rgb, depth).to(audio.device)
-
-        audio_dict = self.audio_encoder(audio)
-        visual_tokens = self.visual_encoder(rgbd)
-        fused_tokens = self.av_fusion(audio_dict["spatial_tokens"], visual_tokens)
-        fused_feature = fused_tokens.mean(dim=1)
-
-        pose_feature = self._encode_pose(pose, audio.size(0), audio.device)
-        ego_map_feature = self._encode_ego_map(ego_map, audio.size(0), audio.device)
-
-        state_feature = self.state_fusion(
-            torch.cat(
-                [
-                    audio_dict["spatial_feature"],
-                    fused_feature,
-                    pose_feature,
-                    ego_map_feature,
-                ],
-                dim=1,
-            )
-        )
-        return {
-            "state_feature": state_feature,
-            "spatial_feature": audio_dict["spatial_feature"],
-            "timbre_feature": audio_dict["timbre_feature"],
-            "fused_feature": fused_feature,
-            "orthogonality_loss": audio_dict["orthogonality_loss"],
-        }
-
-    def embedding_forward(
-        self,
-        audio: torch.Tensor,
-        rgb: torch.Tensor,
-        depth: torch.Tensor,
-        pose: Optional[torch.Tensor] = None,
-        ego_map: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
-        embedding = self.encode_state(audio, rgb, depth, pose=pose, ego_map=ego_map)["state_feature"]
-        return embedding.squeeze(0)
-
-    def forward_joint(
-        self,
-        audio: torch.Tensor,
-        rgb: torch.Tensor,
-        depth: torch.Tensor,
-        pose: Optional[torch.Tensor] = None,
-        ego_map: Optional[torch.Tensor] = None,
-        *,
-        return_aux: bool = False,
-    ):
-        polar_predict, angle_logits, action_logits, aux = self.forward(
-            audio,
-            rgb,
-            depth,
-            pose=pose,
-            ego_map=ego_map,
-            return_aux=True,
-        )
-        if return_aux:
-            return action_logits, angle_logits, aux
+    def forward_joint(self, audio, rgb, depth):
+        """
+        Joint forward for action + angle training.
+        - action_logits: from AV fusion branch
+        - angle_logits: from audio encoder head (8 sectors)
+        """
+        _, _, action_logits = self.forward(audio, rgb, depth)
+        if len(audio.shape) == 3:
+            audio = audio.unsqueeze(0)
+        angle_logits = self.audio_encoder(audio)
         return action_logits, angle_logits
+    
 
-    def forward(
-        self,
-        audio: torch.Tensor,
-        rgb: torch.Tensor,
-        depth: torch.Tensor,
-        pose: Optional[torch.Tensor] = None,
-        ego_map: Optional[torch.Tensor] = None,
-        *,
-        return_aux: bool = False,
-    ):
-        encoded = self.encode_state(audio, rgb, depth, pose=pose, ego_map=ego_map)
-        polar_predict = self.polar_head(encoded["spatial_feature"])
-        angle_logits = self.angle_head(encoded["spatial_feature"])
-        action_logits = self.action_head(encoded["state_feature"])
+    def embedding_forward(self, audio , rgb , depth=None):
+        embedding = self._action_embedding(audio, rgb, depth)
+        return  embedding
 
-        if return_aux:
-            aux = {
-                "orthogonality_loss": encoded["orthogonality_loss"],
-                "spatial_feature": encoded["spatial_feature"],
-                "timbre_feature": encoded["timbre_feature"],
-                "fused_feature": encoded["fused_feature"],
-            }
-            return polar_predict, angle_logits, action_logits, aux
-        return polar_predict, angle_logits, action_logits
+    def embedding_forward_modality(self, audio, rgb, depth, modality):
+        """Return a frozen feature from one encoder branch, without fusion or masking."""
+        if modality == "audio_only":
+            if audio.ndim == 3:
+                audio = audio.unsqueeze(0)
+            encoded = self.audio_encoder.encoder_forward(audio)
+            if encoded.ndim != 3 or encoded.shape[1] != 1:
+                raise ValueError(f"Expected one audio token, got {tuple(encoded.shape)}")
+            return encoded[:, 0, :]
+        if modality == "vision_only":
+            if rgb.ndim == 3:
+                rgb = rgb.unsqueeze(0)
+            rgbd = rgb.permute(0, 3, 1, 2)
+            visual = spatial_tokens(self.visual_encoder(rgbd))
+            visual = visual + self.add_position(visual)
+            encoded = self.visual_transformer_encoder(visual)
+            return encoded.mean(dim=1)
+        raise ValueError(f"Unknown single-modality branch: {modality}")
+    
+    def embedding_forward_attention(self, audio , rgb , depth):
+        if len(audio.shape) == 3:
+            audio = audio.unsqueeze(0)
+        if len(rgb.shape) == 3:
+            rgb = rgb.unsqueeze(0)
+
+        rgb = rgb.permute(0,3, 1, 2)
+
+        rgbd = rgb
+        
+        
+        audio_encoder = self.audio_encoder.encoder_forward(audio)
+        visual_cnn = self.visual_encoder(rgbd)
+        v_batch , v_dim , v_h , v_w = visual_cnn.shape
+        visual_cnn = spatial_tokens(visual_cnn)
+        v_position = self.add_position(visual_cnn)
+        visual_cnn = visual_cnn + v_position
+        visual_encoder = self.visual_transformer_encoder(visual_cnn)
+        concat_encoder = torch.cat((audio_encoder , visual_encoder ) , dim=1)
+        share_visual_audio_encoder = self.vaencoder(concat_encoder)
+        p_share_encoder = self.add_position(share_visual_audio_encoder)
+        share_encoder = share_visual_audio_encoder + p_share_encoder
+        embedding = self.final.fc1(share_encoder)
+        embedding = self.final.polar_head[0](embedding)
+        embedding = embedding.squeeze(0)
+        audio_encoder = audio_encoder.squeeze(0)
+        return audio_encoder , embedding
+        # return embedding

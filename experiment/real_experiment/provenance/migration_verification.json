@@ -1,0 +1,26 @@
+{
+  "candidate": "corrective_epoch_015",
+  "checkpoint_and_provenance_hashes": "pass",
+  "frozen_model_code_hashes": "pass",
+  "strict_cpu_loading": "pass",
+  "synthetic_steps": 7,
+  "embedding_equivalence": "exact",
+  "raw_action_equivalence": "pass",
+  "actions": [
+    3,
+    1,
+    2,
+    2,
+    1,
+    1,
+    1
+  ],
+  "reset_and_spectrogram_formats": "pass",
+  "legacy_depth_ignored": "pass",
+  "frontend_without_depth": "pass",
+  "real_hardware_executed": false,
+  "test_split_data_used": false,
+  "http_integration": "pass: health, no-depth, legacy-depth, duplicate-request, session reset, action archives",
+  "cuda_loading_and_inference": "pass",
+  "cuda_device": "NVIDIA GeForce RTX 4090"
+}

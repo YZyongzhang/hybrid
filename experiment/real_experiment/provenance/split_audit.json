@@ -1,0 +1,52 @@
+{
+  "status": "pass",
+  "train_episodes": 5650,
+  "train_scenes": 57,
+  "splits": {
+    "val_multiple": {
+      "path": "/hdd-data3/yongzhang/finnal_exp/data/datasets/audionav/mp3d/v1/val_multiple/val_multiple.json.gz",
+      "sha256": "fedc913b2611c8a904b04f87cec409547000f6877c3d207f8ebca65f0920a77e",
+      "episode_count": 500,
+      "scene_count": 10,
+      "episode_id_snapshot": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/audit/split_episode_ids/val_multiple.jsonl",
+      "identity_sha256": "09de916bcf75be3b87ce41409e151f79e6d548740713f52cc0d6793fc1fa87e9",
+      "train_episode_overlap": 0,
+      "train_scene_overlap": 0
+    },
+    "val_multiple_unheard": {
+      "path": "/hdd-data3/yongzhang/finnal_exp/data/datasets/audionav/mp3d/v1/val_multiple_unheard/val_multiple_unheard.json.gz",
+      "sha256": "3fa21822b8dcfa6b96f9e5b4b1341265389dc6b07c920b8249eafc4e14284a2a",
+      "episode_count": 500,
+      "scene_count": 10,
+      "episode_id_snapshot": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/audit/split_episode_ids/val_multiple_unheard.jsonl",
+      "identity_sha256": "f859535a947278794887330a11aea7bdf4af08c13729a0babb7674ac0459eb98",
+      "train_episode_overlap": 0,
+      "train_scene_overlap": 0
+    },
+    "test_multiple": {
+      "path": "/hdd-data3/yongzhang/finnal_exp/data/datasets/audionav/mp3d/v1/test_multiple/test_multiple.json",
+      "sha256": "a2e90caf0418fecd8931e88d8c02e269b082ee764fdb61104af46509854b8f14",
+      "episode_count": 1000,
+      "scene_count": 12,
+      "episode_id_snapshot": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/audit/split_episode_ids/test_multiple.jsonl",
+      "identity_sha256": "9dcd2a6acfab1a4db1e4b1e5ef2e9ec350a811cdb572a930543083fe6d82bf51",
+      "train_episode_overlap": 0,
+      "train_scene_overlap": 0
+    },
+    "test_multiple_unheard": {
+      "path": "/hdd-data3/yongzhang/finnal_exp/data/datasets/audionav/mp3d/v1/test_multiple_unheard/test_multiple_unheard.json.gz",
+      "sha256": "7a9ff982e6e0830082a03ddbf5cc1d3f0268aa8e82ef311ec5e8d390973e440c",
+      "episode_count": 1000,
+      "scene_count": 12,
+      "episode_id_snapshot": "/home/getuanhui/project/hybrid_offline_RL/result/2026-10-28-avnav-codex_attemp_rgb/audit/split_episode_ids/test_multiple_unheard.jsonl",
+      "identity_sha256": "c689668b2d2f19217b0f7a27cc28fa9e6c0571942d1f2288ed370702fb3d246e",
+      "train_episode_overlap": 0,
+      "train_scene_overlap": 0
+    }
+  },
+  "test_read_scope": "manifest hashes and existing identity inventories only; no test payload loaded",
+  "excluded_training_root_children": [
+    "hybird(val_multiple)",
+    "hybird(val_multiple_unheard)"
+  ]
+}
